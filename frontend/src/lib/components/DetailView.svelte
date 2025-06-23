@@ -55,10 +55,6 @@
     </div>
   {:else if detailData}
     <div class="header">
-      <button on:click={() => goto('/')} class="back-btn">
-        ← Back to Performance Grid
-      </button>
-      
       <div class="config-header">
         <h1 class="config-title">{detailData.config.name}</h1>
         <div class="config-subtitle">
@@ -77,17 +73,6 @@
         <div class="overall-score" data-tier={getScoreTier(detailData.config.overall_score)}>
           {formatPercentage(detailData.config.overall_score)}%
         </div>
-        <div class="score-label">
-          {#if detailData.config.overall_score >= 80}
-            Excellent Performance
-          {:else if detailData.config.overall_score >= 70}
-            Good Performance
-          {:else if detailData.config.overall_score >= 60}
-            Fair Performance
-          {:else}
-            Needs Improvement
-          {/if}
-        </div>
       </div>
       
       <!-- Performance Metrics Card -->
@@ -95,16 +80,12 @@
         <h3>Performance Metrics</h3>
         <div class="metrics-grid">
           <div class="metric">
-            <div class="metric-label">Speed</div>
+            <div class="metric-label">Generation Speed</div>
             <div class="metric-value">{detailData.config.performance.speed} tok/s</div>
           </div>
           <div class="metric">
-            <div class="metric-label">Memory Usage</div>
-            <div class="metric-value">{detailData.config.performance.memory} GB</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Loading Time</div>
-            <div class="metric-value">{detailData.config.performance.loading_time}s</div>
+            <div class="metric-label">Prompt Processing</div>
+            <div class="metric-value">{detailData.config.performance.prompt_speed} tok/s</div>
           </div>
         </div>
       </div>
@@ -226,22 +207,6 @@
     margin-bottom: 2rem;
   }
   
-  .back-btn {
-    background: none;
-    border: 1px solid #6c757d;
-    color: #6c757d;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-bottom: 1rem;
-  }
-  
-  .back-btn:hover {
-    background: #6c757d;
-    color: white;
-  }
-  
   .config-header {
     text-align: center;
     padding: 2rem;
@@ -269,7 +234,7 @@
   
   .content-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 2rem;
     margin-bottom: 3rem;
   }
@@ -298,12 +263,6 @@
   .overall-score[data-tier="good"] { color: #17a2b8; }
   .overall-score[data-tier="fair"] { color: #ffc107; }
   .overall-score[data-tier="poor"] { color: #dc3545; }
-  
-  .score-label {
-    text-align: center;
-    color: #6c757d;
-    font-weight: 500;
-  }
   
   .metrics-grid {
     display: grid;

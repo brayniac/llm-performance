@@ -1,29 +1,32 @@
 <script>
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import ComparisonView from '$lib/components/ComparisonView.svelte';
+  import DetailView from '$lib/components/DetailView.svelte';
   
-  $: configA = $page.params.configA;
-  $: configB = $page.params.configB;
+  $: configId = $page.params.configId;
+  
+  function goBack() {
+    goto('/');
+  }
 </script>
 
 <svelte:head>
-  <title>Compare {configA} vs {configB} - LLM Benchmarks</title>
-  <meta name="description" content="Detailed comparison of two LLM configurations across MMLU-Pro categories and performance metrics" />
+  <title>Details: {configId} - LLM Benchmarks</title>
+  <meta name="description" content="Detailed view of {configId} performance and quality metrics" />
 </svelte:head>
 
-<div class="comparison-page">
+<div class="detail-page">
   <div class="breadcrumb">
-    <button on:click={() => goto('/')} class="back-btn">
+    <button on:click={goBack} class="back-btn">
       ← Back to Performance Grid
     </button>
   </div>
   
-  <ComparisonView {configA} {configB} />
+  <DetailView {configId} />
 </div>
 
 <style>
-  .comparison-page {
+  .detail-page {
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 2rem;

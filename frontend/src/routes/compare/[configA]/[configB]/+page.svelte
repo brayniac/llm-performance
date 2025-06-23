@@ -1,9 +1,14 @@
 <script>
   import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
   import ComparisonView from '$lib/components/ComparisonView.svelte';
   
   $: configA = $page.params.configA;
   $: configB = $page.params.configB;
+  
+  function goBack() {
+    goto('/');
+  }
 </script>
 
 <svelte:head>
@@ -13,7 +18,7 @@
 
 <div class="comparison-page">
   <div class="breadcrumb">
-    <button on:click={() => goto('/')} class="back-btn">
+    <button on:click={goBack} class="back-btn">
       ← Back to Performance Grid
     </button>
   </div>
