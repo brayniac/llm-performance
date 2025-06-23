@@ -56,12 +56,12 @@
         All
       </label>
       <label>
-        <input type="checkbox" bind:group={selectedHardware} value="optimized_vm" /> 
-        Optimized VM
+        <input type="checkbox" bind:group={selectedHardware} value="gpu" /> 
+        GPU
       </label>
       <label>
-        <input type="checkbox" bind:group={selectedHardware} value="bare_metal" /> 
-        Bare Metal
+        <input type="checkbox" bind:group={selectedHardware} value="cpu_only" /> 
+        CPU
       </label>
     </div>
   </div>

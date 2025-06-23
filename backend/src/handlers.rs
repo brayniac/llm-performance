@@ -38,10 +38,12 @@ pub async fn get_performance_grid(
     let rows: Vec<PerformanceGridRow> = query_results
         .into_iter()
         .map(|result| {
-            let hardware_type = if result.virtualization_type.is_some() {
-                "optimized_vm".to_string()
+            let hardware_type = if result.gpu_model == "CPU Only" {
+                "cpu_only".to_string()
+            } else if result.virtualization_type.is_some() {
+                "gpu".to_string() // Simplified to just "gpu" for GPU-accelerated
             } else {
-                "bare_metal".to_string()
+                "gpu".to_string()
             };
 
             PerformanceGridRow {
