@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import * as echarts from 'echarts';
   
-  export let comparisonData;
+  export let categories;
+  export let configName;
   
   let chartContainer;
   let chart;
@@ -10,7 +11,6 @@
   onMount(() => {
     chart = echarts.init(chartContainer);
     
-    // Cleanup on component destroy
     return () => {
       if (chart) {
         chart.dispose();
@@ -18,8 +18,7 @@
     };
   });
   
-  // Update chart when data changes
-  $: if (chart && comparisonData) {
+  $: if (chart && categories && categories.length > 0) {
     updateChart();
   }
   
@@ -34,16 +33,16 @@
         }
       },
       legend: {
-        data: [comparisonData.config_a.name, comparisonData.config_b.name],
+        data: [configName],
         bottom: 10
       },
       radar: {
-        indicator: comparisonData.categories.map(cat => ({
+        indicator: categories.map(cat => ({
           name: cat.name,
           max: 100
         })),
         center: ['50%', '55%'],
-        radius: 120,
+        radius: 140,
         nameGap: 15,
         splitNumber: 5,
         axisLabel: {
@@ -60,22 +59,14 @@
       },
       series: [{
         type: 'radar',
-        data: [
-          {
-            value: comparisonData.categories.map(cat => cat.score_a),
-            name: comparisonData.config_a.name,
-            lineStyle: { color: '#5470c6', width: 3 },
-            areaStyle: { opacity: 0.1, color: '#5470c6' },
-            itemStyle: { color: '#5470c6' }
-          },
-          {
-            value: comparisonData.categories.map(cat => cat.score_b),
-            name: comparisonData.config_b.name,
-            lineStyle: { color: '#ee6666', width: 3 },
-            areaStyle: { opacity: 0.1, color: '#ee6666' },
-            itemStyle: { color: '#ee6666' }
-          }
-        ]
+        data: [{
+          value: categories.map(cat => cat.score),
+          name: configName,
+          lineStyle: { color: '#2196f3', width: 3 },
+          areaStyle: { opacity: 0.2, color: '#2196f3' },
+          symbol: 'circle',
+          symbolSize: 6
+        }]
       }]
     };
     
@@ -97,6 +88,6 @@
   
   .chart {
     width: 100%;
-    height: 400px;
+    height: 450px;
   }
 </style>

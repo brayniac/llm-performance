@@ -37,17 +37,32 @@
   <div class="filter-group">
     <label>Backend:</label>
     <div class="checkbox-group">
-      <label><input type="checkbox" bind:group={selectedBackends} value="llama_cpp" /> llama.cpp</label>
-      <label><input type="checkbox" bind:group={selectedBackends} value="vllm" /> vLLM</label>
+      <label>
+        <input type="checkbox" bind:group={selectedBackends} value="llama_cpp" /> 
+        llama.cpp
+      </label>
+      <label>
+        <input type="checkbox" bind:group={selectedBackends} value="vllm" /> 
+        vLLM
+      </label>
     </div>
   </div>
   
   <div class="filter-group">
     <label>Hardware:</label>
     <div class="checkbox-group">
-      <label><input type="checkbox" bind:group={selectedHardware} value="all" /> All</label>
-      <label><input type="checkbox" bind:group={selectedHardware} value="optimized_vm" /> Optimized VM</label>
-      <label><input type="checkbox" bind:group={selectedHardware} value="bare_metal" /> Bare Metal</label>
+      <label>
+        <input type="checkbox" bind:group={selectedHardware} value="all" /> 
+        All
+      </label>
+      <label>
+        <input type="checkbox" bind:group={selectedHardware} value="optimized_vm" /> 
+        Optimized VM
+      </label>
+      <label>
+        <input type="checkbox" bind:group={selectedHardware} value="bare_metal" /> 
+        Bare Metal
+      </label>
     </div>
   </div>
 </div>

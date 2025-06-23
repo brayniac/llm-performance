@@ -9,7 +9,7 @@ use tower_http::services::ServeDir;
 mod models;
 mod handlers;
 
-use handlers::{get_performance_grid, get_comparison, get_configurations};
+use handlers::{get_performance_grid, get_comparison, get_configurations, get_detail};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -40,6 +40,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/performance-grid", get(get_performance_grid))
         .route("/api/comparison", get(get_comparison))
         .route("/api/configurations", get(get_configurations))
+        .route("/api/detail/:test_run_id", get(get_detail))
         .route("/health", get(health_check))
         // Serve static files (your built frontend)
         .nest_service("/", ServeDir::new("../frontend/build"))

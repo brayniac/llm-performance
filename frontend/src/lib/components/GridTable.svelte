@@ -1,5 +1,6 @@
 <script>
   import { createEventDispatcher } from 'svelte';
+  import { goto } from '$app/navigation';
   
   export let configurations = [];
   export let selectedConfigs = [];
@@ -8,6 +9,10 @@
   
   function toggleSelection(configId) {
     dispatch('selectionChanged', { configId });
+  }
+  
+  function viewDetails(configId) {
+    goto(`/detail/${configId}`);
   }
   
   function getPerformanceTier(speed) {
@@ -24,7 +29,7 @@
     <div>Speed</div>
     <div>Memory</div>
     <div>Hardware</div>
-    <div>Select</div>
+    <div>Actions</div>
   </div>
   
   {#each configurations as config (config.id)}
@@ -47,13 +52,19 @@
         <div class="cpu">{config.cpu_arch}</div>
       </div>
       
-      <div class="select">
-        <input 
-          type="checkbox" 
-          checked={selectedConfigs.includes(config.id)}
-          on:change={() => toggleSelection(config.id)}
-          disabled={!selectedConfigs.includes(config.id) && selectedConfigs.length >= 2}
-        />
+      <div class="actions">
+        <button on:click={() => viewDetails(config.id)} class="detail-btn" title="View Details">
+          Details
+        </button>
+        <label class="checkbox-label">
+          <input 
+            type="checkbox" 
+            checked={selectedConfigs.includes(config.id)}
+            on:change={() => toggleSelection(config.id)}
+            disabled={!selectedConfigs.includes(config.id) && selectedConfigs.length >= 2}
+          />
+          <span class="sr-only">Select {config.model_name} for comparison</span>
+        </label>
       </div>
     </div>
   {/each}
@@ -68,7 +79,7 @@
   
   .grid-row {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 0.5fr;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 0.8fr;
     gap: 1rem;
     padding: 1rem;
     border-bottom: 1px solid #e1e5e9;
@@ -122,5 +133,52 @@
   .hardware .cpu {
     font-size: 0.875rem;
     color: #6c757d;
+  }
+  
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .detail-btn {
+    background: none;
+    border: 1px solid #2196f3;
+    color: #2196f3;
+    padding: 0.4rem 0.8rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  
+  .detail-btn:hover {
+    background: #2196f3;
+    color: white;
+  }
+  
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+  }
+  
+  .checkbox-label input[type="checkbox"] {
+    margin: 0;
+  }
+  
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 </style>

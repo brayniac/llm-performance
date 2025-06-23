@@ -95,6 +95,46 @@ pub struct CategoryComparison {
     pub score_b: f64,
 }
 
+// New types for detail view
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DetailData {
+    pub config: ConfigDetail,
+    pub categories: Vec<CategoryScore>,
+    pub system_info: SystemInfo,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ConfigDetail {
+    pub name: String,
+    pub model: String,
+    pub quantization: String,
+    pub backend: String,
+    pub backend_version: String,
+    pub overall_score: f64,
+    pub performance: PerformanceSummary,
+    pub test_run_date: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CategoryScore {
+    pub name: String,
+    pub score: f64,
+    pub total_questions: Option<i32>,
+    pub correct_answers: Option<i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SystemInfo {
+    pub gpu_model: String,
+    pub gpu_memory_gb: i32,
+    pub cpu_model: String,
+    pub cpu_arch: String,
+    pub ram_gb: i32,
+    pub ram_type: String,
+    pub virtualization_type: Option<String>,
+    pub optimizations: Vec<String>,
+}
+
 // Database query result types
 #[derive(Debug, sqlx::FromRow)]
 pub struct PerformanceGridQueryResult {

@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Query, State},
+    extract::{Query, State, Path},
     response::Json,
 };
 use crate::{AppState, models::*};
@@ -9,18 +9,18 @@ use uuid::Uuid;
 pub async fn get_performance_grid(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<PerformanceGridRow>>, (axum::http::StatusCode, String)> {
-    let query_results = sqlx::query_as!(
-        PerformanceGridQueryResult,
+    let query_results = sqlx::query!(
         r#"
         SELECT 
+            tr.id,
             tr.model_name,
             tr.quantization,
             tr.backend,
             hp.gpu_model,
             hp.cpu_arch,
             hp.virtualization_type,
-            pm_speed.value as tokens_per_second,
-            pm_memory.value as memory_gb
+            pm_speed.value as "tokens_per_second: Option<f64>",
+            pm_memory.value as "memory_gb: Option<f64>"
         FROM test_runs tr
         JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id
         LEFT JOIN performance_metrics pm_speed ON tr.id = pm_speed.test_run_id 
@@ -45,12 +45,7 @@ pub async fn get_performance_grid(
             };
 
             PerformanceGridRow {
-                id: format!("{}-{}-{}-{}", 
-                    result.model_name.replace(" ", "-").to_lowercase(),
-                    result.quantization.to_lowercase(),
-                    result.cpu_arch.to_lowercase(),
-                    result.gpu_model.replace(" ", "-").to_lowercase()
-                ),
+                id: result.id.to_string(), // Use UUID as string
                 model_name: result.model_name,
                 quantization: result.quantization,
                 backend: result.backend,
@@ -70,32 +65,97 @@ pub async fn get_comparison(
     Query(params): Query<ComparisonRequest>,
     State(state): State<AppState>,
 ) -> Result<Json<ComparisonData>, (axum::http::StatusCode, String)> {
-    // Parse config IDs (format: model-quantization-cpu_arch-gpu_model)
-    let config_a_parts: Vec<&str> = params.config_a.split('-').collect();
-    let config_b_parts: Vec<&str> = params.config_b.split('-').collect();
+    // Parse UUIDs from strings
+    let uuid_a = Uuid::parse_str(&params.config_a)
+        .map_err(|_| (axum::http::StatusCode::BAD_REQUEST, "Invalid UUID format for config_a".to_string()))?;
     
-    if config_a_parts.len() < 4 || config_b_parts.len() < 4 {
-        return Err((axum::http::StatusCode::BAD_REQUEST, "Invalid config format".to_string()));
-    }
+    let uuid_b = Uuid::parse_str(&params.config_b)
+        .map_err(|_| (axum::http::StatusCode::BAD_REQUEST, "Invalid UUID format for config_b".to_string()))?;
 
-    // Get test run data for both configs
-    let config_a_data = get_config_data(&state.db, &config_a_parts).await
+    // Get test run data for both configs using UUIDs
+    let config_a_data = get_config_data_by_uuid(&state.db, &uuid_a).await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("Error fetching config A: {}", e)))?;
     
-    let config_b_data = get_config_data(&state.db, &config_b_parts).await
+    let config_b_data = get_config_data_by_uuid(&state.db, &uuid_b).await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("Error fetching config B: {}", e)))?;
 
     // Get MMLU-Pro category scores
-    let categories = get_category_comparison(&state.db, &config_a_data.0, &config_b_data.0).await
+    let categories = get_category_comparison(&state.db, &uuid_a, &uuid_b).await
         .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("Error fetching categories: {}", e)))?;
 
     let comparison = ComparisonData {
-        config_a: config_a_data.1,
-        config_b: config_b_data.1,
+        config_a: config_a_data,
+        config_b: config_b_data,
         categories,
     };
 
     Ok(Json(comparison))
+}
+
+async fn get_config_data_by_uuid(
+    db: &sqlx::PgPool,
+    test_run_id: &Uuid,
+) -> Result<ConfigSummary, sqlx::Error> {
+    // Get test run data by UUID
+    let test_run = sqlx::query!(
+        r#"
+        SELECT tr.id as test_run_id, tr.model_name, tr.quantization, tr.backend, hp.gpu_model, hp.cpu_arch
+        FROM test_runs tr
+        JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id
+        WHERE tr.id = $1 AND tr.status = 'completed'
+        "#,
+        test_run_id
+    )
+    .fetch_one(db)
+    .await?;
+
+    // Get performance metrics
+    let performance_metrics = sqlx::query_as!(
+        PerformanceMetricQueryResult,
+        r#"
+        SELECT metric_name, value
+        FROM performance_metrics
+        WHERE test_run_id = $1
+        "#,
+        test_run.test_run_id
+    )
+    .fetch_all(db)
+    .await?;
+
+    let perf_map: HashMap<String, f64> = performance_metrics
+        .into_iter()
+        .map(|row| (row.metric_name, row.value))
+        .collect();
+
+    // Get overall MMLU-Pro score
+    let overall_score_result = sqlx::query!(
+        r#"
+        SELECT AVG(score) as avg_score
+        FROM quality_scores
+        WHERE test_run_id = $1 AND benchmark_name = 'mmlu_pro'
+        "#,
+        test_run.test_run_id
+    )
+    .fetch_one(db)
+    .await?;
+
+    let overall_score = overall_score_result.avg_score.unwrap_or(0.0);
+
+    let config_summary = ConfigSummary {
+        name: format!("{} {}", test_run.model_name, test_run.quantization),
+        model: test_run.model_name,
+        quantization: test_run.quantization,
+        backend: test_run.backend,
+        hardware: format!("{}/{}", test_run.gpu_model, test_run.cpu_arch),
+        overall_score,
+        performance: PerformanceSummary {
+            speed: perf_map.get("tokens_per_second").copied().unwrap_or(0.0),
+            memory: perf_map.get("memory_usage_gb").copied().unwrap_or(0.0),
+            loading_time: perf_map.get("model_loading_time").copied().unwrap_or(5.0),
+        },
+    };
+
+    Ok(config_summary)
 }
 
 async fn get_config_data(
@@ -231,6 +291,152 @@ async fn get_category_comparison(
             name: row.category,
             score_a: row.score_a,
             score_b: row.score_b,
+        })
+        .collect())
+}
+
+pub async fn get_detail(
+    Path(test_run_id): Path<String>,
+    State(state): State<AppState>,
+) -> Result<Json<DetailData>, (axum::http::StatusCode, String)> {
+    // Parse UUID from string
+    let uuid = Uuid::parse_str(&test_run_id)
+        .map_err(|_| (axum::http::StatusCode::BAD_REQUEST, "Invalid UUID format".to_string()))?;
+
+    // Get detailed config data
+    let (config_detail, system_info) = get_detailed_config_data(&state.db, &uuid).await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("Error fetching config details: {}", e)))?;
+
+    // Get category scores
+    let categories = get_category_scores(&state.db, &uuid).await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("Error fetching categories: {}", e)))?;
+
+    let detail_data = DetailData {
+        config: config_detail,
+        categories,
+        system_info,
+    };
+
+    Ok(Json(detail_data))
+}
+
+async fn get_detailed_config_data(
+    db: &sqlx::PgPool,
+    test_run_id: &Uuid,
+) -> Result<(ConfigDetail, SystemInfo), sqlx::Error> {
+    // Get detailed test run and hardware info by UUID - much simpler!
+    let result = sqlx::query!(
+        r#"
+        SELECT 
+            tr.id as test_run_id,
+            tr.model_name,
+            tr.quantization,
+            tr.backend,
+            tr.backend_version,
+            tr.timestamp,
+            hp.gpu_model,
+            hp.gpu_memory_gb,
+            hp.cpu_model,
+            hp.cpu_arch,
+            hp.ram_gb,
+            hp.ram_type,
+            hp.virtualization_type,
+            hp.optimizations
+        FROM test_runs tr
+        JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id
+        WHERE tr.id = $1 AND tr.status = 'completed'
+        "#,
+        test_run_id
+    )
+    .fetch_one(db)
+    .await?;
+
+    // Get performance metrics
+    let performance_metrics = sqlx::query_as!(
+        PerformanceMetricQueryResult,
+        r#"
+        SELECT metric_name, value
+        FROM performance_metrics
+        WHERE test_run_id = $1
+        "#,
+        result.test_run_id
+    )
+    .fetch_all(db)
+    .await?;
+
+    let perf_map: HashMap<String, f64> = performance_metrics
+        .into_iter()
+        .map(|row| (row.metric_name, row.value))
+        .collect();
+
+    // Get overall MMLU-Pro score
+    let overall_score_result = sqlx::query!(
+        r#"
+        SELECT AVG(score) as avg_score
+        FROM quality_scores
+        WHERE test_run_id = $1 AND benchmark_name = 'mmlu_pro'
+        "#,
+        result.test_run_id
+    )
+    .fetch_one(db)
+    .await?;
+
+    let overall_score = overall_score_result.avg_score.unwrap_or(0.0);
+
+    let config_detail = ConfigDetail {
+        name: format!("{} {}", result.model_name, result.quantization),
+        model: result.model_name,
+        quantization: result.quantization,
+        backend: result.backend,
+        backend_version: result.backend_version,
+        overall_score,
+        performance: PerformanceSummary {
+            speed: perf_map.get("tokens_per_second").copied().unwrap_or(0.0),
+            memory: perf_map.get("memory_usage_gb").copied().unwrap_or(0.0),
+            loading_time: perf_map.get("model_loading_time").copied().unwrap_or(5.0),
+        },
+        test_run_date: result.timestamp
+            .map(|ts| ts.format("%Y-%m-%d %H:%M UTC").to_string())
+            .unwrap_or_else(|| "Unknown".to_string()),
+    };
+
+    let system_info = SystemInfo {
+        gpu_model: result.gpu_model,
+        gpu_memory_gb: result.gpu_memory_gb,
+        cpu_model: result.cpu_model,
+        cpu_arch: result.cpu_arch,
+        ram_gb: result.ram_gb,
+        ram_type: result.ram_type,
+        virtualization_type: result.virtualization_type,
+        optimizations: result.optimizations.unwrap_or_else(|| vec![]),
+    };
+
+    Ok((config_detail, system_info))
+}
+
+async fn get_category_scores(
+    db: &sqlx::PgPool,
+    test_run_id: &Uuid,
+) -> Result<Vec<CategoryScore>, sqlx::Error> {
+    let categories = sqlx::query!(
+        r#"
+        SELECT category, score, total_questions, correct_answers
+        FROM quality_scores
+        WHERE test_run_id = $1 AND benchmark_name = 'mmlu_pro'
+        ORDER BY category
+        "#,
+        test_run_id
+    )
+    .fetch_all(db)
+    .await?;
+
+    Ok(categories
+        .into_iter()
+        .map(|row| CategoryScore {
+            name: row.category,
+            score: row.score,
+            total_questions: row.total_questions,
+            correct_answers: row.correct_answers,
         })
         .collect())
 }
