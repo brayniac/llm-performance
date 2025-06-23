@@ -41,7 +41,7 @@
       },
       xAxis: {
         type: 'category',
-        data: ['Speed (tok/s)', 'Memory (GB)', 'Loading Time (s)']
+        data: ['Generation Speed (tok/s)', 'Prompt Processing (tok/s)']
       },
       yAxis: {
         type: 'value'
@@ -52,8 +52,7 @@
           type: 'bar',
           data: [
             comparisonData.config_a.performance.speed,
-            comparisonData.config_a.performance.memory,
-            comparisonData.config_a.performance.loading_time
+            comparisonData.config_a.performance.prompt_speed
           ],
           itemStyle: { color: '#5470c6' }
         },
@@ -62,8 +61,7 @@
           type: 'bar',
           data: [
             comparisonData.config_b.performance.speed,
-            comparisonData.config_b.performance.memory,
-            comparisonData.config_b.performance.loading_time
+            comparisonData.config_b.performance.prompt_speed
           ],
           itemStyle: { color: '#ee6666' }
         }

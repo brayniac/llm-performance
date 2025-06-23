@@ -86,6 +86,7 @@ pub struct PerformanceSummary {
     pub speed: f64,
     pub memory: f64,
     pub loading_time: f64,
+    pub prompt_speed: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

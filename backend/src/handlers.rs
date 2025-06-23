@@ -152,6 +152,7 @@ async fn get_config_data_by_uuid(
             speed: perf_map.get("tokens_per_second").copied().unwrap_or(0.0),
             memory: perf_map.get("memory_usage_gb").copied().unwrap_or(0.0),
             loading_time: perf_map.get("model_loading_time").copied().unwrap_or(5.0),
+            prompt_speed: perf_map.get("prompt_processing_speed").copied().unwrap_or(0.0),
         },
     };
 
@@ -231,7 +232,8 @@ async fn get_config_data(
         performance: PerformanceSummary {
             speed: perf_map.get("tokens_per_second").copied().unwrap_or(0.0),
             memory: perf_map.get("memory_usage_gb").copied().unwrap_or(0.0),
-            loading_time: perf_map.get("model_loading_time").copied().unwrap_or(5.0), // Default loading time
+            loading_time: perf_map.get("model_loading_time").copied().unwrap_or(5.0),
+            prompt_speed: perf_map.get("prompt_processing_speed").copied().unwrap_or(0.0),
         },
     };
 
@@ -394,6 +396,7 @@ async fn get_detailed_config_data(
             speed: perf_map.get("tokens_per_second").copied().unwrap_or(0.0),
             memory: perf_map.get("memory_usage_gb").copied().unwrap_or(0.0),
             loading_time: perf_map.get("model_loading_time").copied().unwrap_or(5.0),
+            prompt_speed: perf_map.get("prompt_processing_speed").copied().unwrap_or(0.0),
         },
         test_run_date: result.timestamp
             .map(|ts| ts.format("%Y-%m-%d %H:%M UTC").to_string())
