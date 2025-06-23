@@ -22,48 +22,6 @@
     configurations = await response.json();
     loading = false;
   });
-
-/*
-  onMount(async () => {
-    // Mock data for testing - replace with real API call later
-    configurations = [
-      {
-        id: "mistral-small-3.2-24b-q8_0-zen2-rtx4090",
-        model_name: "Mistral Small 3.2 24B",
-        quantization: "Q8_0",
-        backend: "llama_cpp",
-        tokens_per_second: 45.2,
-        memory_gb: 18.5,
-        gpu_model: "RTX 4090",
-        cpu_arch: "Zen2",
-        hardware_type: "optimized_vm"
-      },
-      {
-        id: "mistral-small-3.2-24b-q4_0-zen2-rtx4090",
-        model_name: "Mistral Small 3.2 24B",
-        quantization: "Q4_0",
-        backend: "llama_cpp",
-        tokens_per_second: 78.1,
-        memory_gb: 12.3,
-        gpu_model: "RTX 4090",
-        cpu_arch: "Zen2",
-        hardware_type: "optimized_vm"
-      },
-      {
-        id: "llama-3.1-8b-q8_0-zen1-rtx4090",
-        model_name: "Llama 3.1 8B",
-        quantization: "Q8_0",
-        backend: "llama_cpp",
-        tokens_per_second: 92.5,
-        memory_gb: 8.7,
-        gpu_model: "RTX 4090",
-        cpu_arch: "Zen1",
-        hardware_type: "bare_metal"
-      }
-    ];
-    loading = false;
-  });
-*/
   
   // When filters change, update the filtered list
   function handleFiltersChanged(event) {

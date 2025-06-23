@@ -20,6 +20,11 @@
     if (speed >= 40) return 'medium';
     return 'low';
   }
+  
+  function formatBackendName(backend) {
+    if (backend === 'llama_cpp') return 'llama.cpp';
+    return backend;
+  }
 </script>
 
 <div class="grid">
@@ -39,7 +44,7 @@
         <div class="quantization">{config.quantization}</div>
       </div>
       
-      <div class="backend">{config.backend}</div>
+      <div class="backend">{formatBackendName(config.backend)}</div>
       
       <div class="speed" data-tier={getPerformanceTier(config.tokens_per_second)}>
         {config.tokens_per_second} tok/s
