@@ -1,106 +1,17 @@
-// backend/src/models.rs
-// Migration to use types crate for shared types
+// models/conversions.rs
+// Conversion implementations between database types and API types
 
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
-
-// Only re-export the types we actually use in handlers
-pub use llm_benchmark_types::{
-    PerformanceGridRow, ExperimentSummary, 
-    CategoryScore, SystemInfo, ExperimentStatus,
-    HardwareConfig, PerformanceMetric, QualityScore,
+use llm_benchmark_types::{
+    PerformanceGridRow, CategoryScore, ExperimentSummary, ExperimentStatus,
+    HardwareConfig, SystemInfo, PerformanceMetric, QualityScore
 };
 
-// Database-specific types that need sqlx derives
-// These represent the actual database schema and need FromRow derives
+use super::{
+    database::{TestRunRow, HardwareProfileRow, PerformanceMetricRow, QualityScoreRow},
+    query_results::{PerformanceGridQueryResult, QualityScoreQueryResult}
+};
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct TestRunRow {
-    pub id: Uuid,
-    pub model_name: String,
-    pub quantization: String,
-    pub backend: String,
-    pub backend_version: String,
-    pub hardware_profile_id: Uuid,
-    pub timestamp: DateTime<Utc>,
-    pub status: String,
-    pub notes: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct HardwareProfileRow {
-    pub id: Uuid,
-    pub gpu_model: String,
-    pub gpu_memory_gb: i32,
-    pub cpu_model: String,
-    pub cpu_arch: String,
-    pub ram_gb: i32,
-    pub ram_type: String,
-    pub virtualization_type: Option<String>,
-    pub optimizations: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct PerformanceMetricRow {
-    pub test_run_id: Uuid,
-    pub metric_name: String,
-    pub value: f64,
-    pub unit: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct QualityScoreRow {
-    pub test_run_id: Uuid,
-    pub benchmark_name: String,
-    pub category: String,
-    pub score: f64,
-}
-
-// Database query result types for complex joins
-#[derive(Debug, sqlx::FromRow)]
-pub struct PerformanceGridQueryResult {
-    pub test_run_id: Uuid,
-    pub model_name: String,
-    pub quantization: String,
-    pub backend: String,
-    pub gpu_model: String,
-    pub cpu_arch: String,
-    pub virtualization_type: Option<String>,
-    pub tokens_per_second: Option<f64>,
-    pub memory_gb: Option<f64>,
-    pub overall_score: Option<f64>,
-}
-
-#[derive(Debug, sqlx::FromRow)]
-pub struct ConfigDataQueryResult {
-    pub test_run_id: Uuid,
-    pub model_name: String,
-    pub quantization: String,
-    pub backend: String,
-    pub backend_version: String,
-    pub gpu_model: String,
-    pub cpu_arch: String,
-    pub timestamp: DateTime<Utc>,
-}
-
-#[derive(Debug, sqlx::FromRow)]
-pub struct PerformanceMetricQueryResult {
-    pub metric_name: String,
-    pub value: f64,
-    pub unit: String,
-}
-
-#[derive(Debug, sqlx::FromRow)]
-pub struct QualityScoreQueryResult {
-    pub benchmark_name: String,
-    pub category: String,
-    pub score: f64,
-    pub total_questions: Option<i32>,
-    pub correct_answers: Option<i32>,
-}
-
-// Conversion functions from database rows to API types
+// Conversion from query results to API types
 impl From<PerformanceGridQueryResult> for PerformanceGridRow {
     fn from(row: PerformanceGridQueryResult) -> Self {
         let hardware_type = if row.gpu_model.to_lowercase().contains("cpu") {
@@ -135,7 +46,7 @@ impl From<QualityScoreQueryResult> for CategoryScore {
     }
 }
 
-// Conversion from database rows to types crate structs
+// Conversion methods for database rows
 impl TestRunRow {
     pub fn to_experiment_summary(&self, hardware_summary: String, overall_score: Option<f64>) -> ExperimentSummary {
         let status = match self.status.as_str() {
