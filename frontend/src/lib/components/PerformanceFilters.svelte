@@ -3,7 +3,7 @@
   
   export let maxMemory = 32;
   export let minSpeed = 0;
-  export let selectedBackends = ['llama_cpp', 'vllm'];
+  export let selectedBackends = ['llama.cpp', 'vllm'];
   export let selectedHardware = ['all'];
   
   const dispatch = createEventDispatcher();

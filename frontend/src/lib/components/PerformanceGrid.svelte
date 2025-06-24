@@ -14,7 +14,7 @@
   // Filter values (these get passed to PerformanceFilters)
   let maxMemory = 32;
   let minSpeed = 0;
-  let selectedBackends = ['llama_cpp', 'vllm'];
+  let selectedBackends = ['llama.cpp', 'vllm'];
   let selectedHardware = ['all'];
   
   onMount(async () => {

@@ -22,7 +22,6 @@
   }
   
   function formatBackendName(backend) {
-    if (backend === 'llama_cpp') return 'llama.cpp';
     return backend;
   }
 </script>
