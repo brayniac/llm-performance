@@ -18,11 +18,11 @@ use crate::{models::*, AppState};
 
 /// Get performance grid data with optional filtering
 pub async fn get_performance_grid(
-    Query(params): Query<PerformanceGridRequest>,
+    Query(_params): Query<PerformanceGridRequest>,
     State(state): State<AppState>,
 ) -> Result<Json<Vec<PerformanceGridRow>>, (StatusCode, Json<ErrorResponse>)> {
-    // Build WHERE clause based on filters - fix type annotation
-    let mut where_conditions: Vec<String> = Vec::new();
+    // Build WHERE clause based on filters - fix unused variable warning
+    let _where_conditions: Vec<String> = Vec::new();
     
     // For now, we'll use a basic query without dynamic parameters
     // You can enhance this later with proper parameter binding
@@ -152,7 +152,7 @@ pub async fn get_configurations(
             backend: row.backend,
             hardware_summary: row.hardware_summary.unwrap_or_default(),
             overall_score: row.overall_score,
-            timestamp: row.timestamp, // Fix: removed Option wrapper
+            timestamp: row.timestamp.unwrap_or_else(|| chrono::Utc::now()),
             status: match row.status.as_str() {
                 "pending" => llm_benchmark_types::ExperimentStatus::Pending,
                 "running" => llm_benchmark_types::ExperimentStatus::Running,
@@ -357,7 +357,7 @@ async fn get_config_data_by_uuid(
     .fetch_one(db)
     .await?;
 
-    // Get performance metrics - fix missing unit field
+    // Get performance metrics
     let performance_metrics = sqlx::query_as!(
         PerformanceMetricQueryResult,
         r#"
@@ -494,7 +494,7 @@ async fn get_detailed_config_data(
     .fetch_one(db)
     .await?;
 
-    // Get performance metrics - fix missing unit field
+    // Get performance metrics
     let performance_metrics = sqlx::query_as!(
         PerformanceMetricQueryResult,
         r#"
@@ -539,8 +539,7 @@ async fn get_detailed_config_data(
             loading_time: perf_map.get("model_loading_time").copied().unwrap_or(5.0),
             prompt_speed: perf_map.get("prompt_processing_speed").copied().unwrap_or(0.0),
         },
-        // Fix: handle Option<DateTime> properly
-        test_run_date: result.timestamp.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+        test_run_date: result.timestamp.unwrap_or_else(|| chrono::Utc::now()).format("%Y-%m-%d %H:%M:%S UTC").to_string(),
     };
 
     let system_info = llm_benchmark_types::SystemInfo {
@@ -551,7 +550,6 @@ async fn get_detailed_config_data(
         ram_gb: result.ram_gb,
         ram_type: result.ram_type,
         virtualization_type: result.virtualization_type,
-        // Fix: handle Option<Vec<String>> properly
         optimizations: result.optimizations.unwrap_or_default(),
     };
 
@@ -569,8 +567,8 @@ async fn get_category_scores(
             benchmark_name,
             category,
             score,
-            NULL::INT as total_questions,
-            NULL::INT as correct_answers
+            NULL::int as total_questions,
+            NULL::int as correct_answers
         FROM quality_scores
         WHERE test_run_id = $1
         ORDER BY category
@@ -580,63 +578,53 @@ async fn get_category_scores(
     .fetch_all(db)
     .await?;
 
-    Ok(categories
-        .into_iter()
-        .map(|row| llm_benchmark_types::CategoryScore {
-            name: row.category,
-            score: row.score,
-            total_questions: row.total_questions,
-            correct_answers: row.correct_answers,
-        })
-        .collect())
+    Ok(categories.into_iter().map(Into::into).collect())
 }
 
 async fn insert_or_find_hardware_profile(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    config: &llm_benchmark_types::HardwareConfig,
+    hardware_config: &llm_benchmark_types::HardwareConfig,
 ) -> Result<Uuid, sqlx::Error> {
     // Try to find existing hardware profile
-    let existing = sqlx::query!(
+    if let Ok(existing) = sqlx::query!(
         r#"
-        SELECT id FROM hardware_profiles 
+        SELECT id FROM hardware_profiles
         WHERE gpu_model = $1 AND cpu_model = $2 AND cpu_arch = $3 
-              AND ram_gb = $4 AND ram_type = $5 
-              AND virtualization_type IS NOT DISTINCT FROM $6
+              AND ram_gb = $4 AND ram_type = $5
         "#,
-        config.gpu_model,
-        config.cpu_model,
-        config.cpu_arch,
-        config.ram_gb,
-        config.ram_type,
-        config.virtualization_type
+        hardware_config.gpu_model,
+        hardware_config.cpu_model,
+        hardware_config.cpu_arch,
+        hardware_config.ram_gb,
+        hardware_config.ram_type
     )
-    .fetch_optional(&mut **tx)
+    .fetch_one(&mut **tx)
+    .await
+    {
+        return Ok(existing.id);
+    }
+
+    // Create new hardware profile
+    let hardware_profile_id = Uuid::new_v4();
+    sqlx::query!(
+        r#"
+        INSERT INTO hardware_profiles 
+        (id, gpu_model, gpu_memory_gb, cpu_model, cpu_arch, ram_gb, ram_type, 
+         virtualization_type, optimizations)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        "#,
+        hardware_profile_id,
+        hardware_config.gpu_model,
+        hardware_config.gpu_memory_gb,
+        hardware_config.cpu_model,
+        hardware_config.cpu_arch,
+        hardware_config.ram_gb,
+        hardware_config.ram_type,
+        hardware_config.virtualization_type,
+        &hardware_config.optimizations
+    )
+    .execute(&mut **tx)
     .await?;
 
-    if let Some(row) = existing {
-        Ok(row.id)
-    } else {
-        // Insert new hardware profile
-        let id = Uuid::new_v4();
-        sqlx::query!(
-            r#"
-            INSERT INTO hardware_profiles (id, gpu_model, gpu_memory_gb, cpu_model, 
-                                         cpu_arch, ram_gb, ram_type, virtualization_type, optimizations)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            "#,
-            id,
-            config.gpu_model,
-            config.gpu_memory_gb,
-            config.cpu_model,
-            config.cpu_arch,
-            config.ram_gb,
-            config.ram_type,
-            config.virtualization_type,
-            &config.optimizations
-        )
-        .execute(&mut **tx)
-        .await?;
-        
-        Ok(id)
-    }
+    Ok(hardware_profile_id)
 }

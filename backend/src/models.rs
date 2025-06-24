@@ -1,18 +1,15 @@
 // backend/src/models.rs
 // Migration to use types crate for shared types
 
-use llm_benchmark_types::*;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-// Re-export only the types we actually use in handlers
+// Only re-export the types we actually use in handlers
 pub use llm_benchmark_types::{
-    PerformanceGridRow, ExperimentSummary, ConfigurationListResponse,
-    DetailData, UploadExperimentRequest, UploadExperimentResponse, 
-    ErrorResponse, HealthResponse, CategoryScore, SystemInfo,
-    ComparisonRequest, ComparisonData, ConfigSummary, PerformanceSummary,
-    CategoryComparison, ConfigDetail, PerformanceGridRequest,
+    PerformanceGridRow, ExperimentSummary, 
+    CategoryScore, SystemInfo, ExperimentStatus,
+    HardwareConfig, PerformanceMetric, QualityScore,
 };
 
 // Database-specific types that need sqlx derives
@@ -91,7 +88,7 @@ pub struct ConfigDataQueryResult {
 pub struct PerformanceMetricQueryResult {
     pub metric_name: String,
     pub value: f64,
-    pub unit: String, // Added missing unit field
+    pub unit: String,
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -197,7 +194,7 @@ impl PerformanceMetricRow {
             metric_name: self.metric_name.clone(),
             value: self.value,
             unit: self.unit.clone(),
-            timestamp: chrono::Utc::now(), // You might want to add timestamp to the database
+            timestamp: chrono::Utc::now(),
             context: None,
         }
     }
@@ -209,7 +206,7 @@ impl QualityScoreRow {
             benchmark_name: self.benchmark_name.clone(),
             category: self.category.clone(),
             score: self.score,
-            total_questions: None, // These are now available in QualityScore type
+            total_questions: None,
             correct_answers: None,
             timestamp: chrono::Utc::now(),
             context: None,
