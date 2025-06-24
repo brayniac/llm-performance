@@ -17,6 +17,8 @@ anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
+llm-benchmark-types = { path = "../types" }
+
 # For development - adds better error messages
 [dev-dependencies]
 tokio-test = "0.4"

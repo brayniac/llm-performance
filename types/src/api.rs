@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{ExperimentRun, ExperimentSummary, HardwareConfig, PerformanceMetric, QualityScore};
+use crate::{ExperimentRun, ExperimentSummary};
 
 /// Request to upload a new experiment run
 #[derive(Debug, Serialize, Deserialize)]

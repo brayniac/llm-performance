@@ -19,6 +19,9 @@ pub use hardware::*;
 pub use metrics::*;
 pub use validation::*;
 
+// Re-export metric names for easy access
+pub use metrics::metric_names;
+
 /// Result type for validation errors
 pub type ValidationResult<T> = Result<T, ValidationError>;
 

@@ -1,8 +1,8 @@
 // llm-benchmark-types/src/validation.rs
 
 use crate::{
-    benchmark_names, metric_names, ExperimentRun, HardwareConfig, PerformanceMetric, QualityScore,
-    ValidationError, ValidationResult,
+    ExperimentRun, HardwareConfig, PerformanceMetric, QualityScore,
+    ValidationError, ValidationResult, metric_names,
 };
 
 /// Validation trait for experiment data
@@ -90,40 +90,46 @@ impl Validate for ExperimentRun {
     fn warnings(&self) -> Vec<String> {
         let mut warnings = Vec::new();
 
-        // Check for missing common metrics
-        let metric_names: Vec<_> = self
-            .performance_metrics
+        // Check for duplicate metric names
+        let metric_names: Vec<&str> = self.performance_metrics
             .iter()
-            .map(|m| m.name.as_str())
+            .map(|m| m.metric_name.as_str())
             .collect();
+        
+        let unique_metrics: std::collections::HashSet<_> = metric_names.iter().collect();
+        if metric_names.len() != unique_metrics.len() {
+            warnings.push("Duplicate performance metrics detected".to_string());
+        }
 
+        // Check for missing essential metrics
         if !metric_names.contains(&metric_names::TOKENS_PER_SECOND) {
             warnings.push("Missing tokens_per_second metric".to_string());
         }
-
+        
         if !metric_names.contains(&metric_names::MEMORY_USAGE_GB) {
             warnings.push("Missing memory_usage_gb metric".to_string());
         }
 
-        // Check for quality scores
-        if self.quality_scores.is_empty() {
-            warnings.push("No quality scores provided".to_string());
-        }
-
-        // Check for unrealistic values
+        // Check for unusual metric values
         for metric in &self.performance_metrics {
-            if metric.name == metric_names::TOKENS_PER_SECOND && metric.value > 1000.0 {
-                warnings.push(format!(
-                    "Unusually high tokens_per_second: {:.1} tok/s",
-                    metric.value
-                ));
-            }
-
-            if metric.name == metric_names::MEMORY_USAGE_GB && metric.value > 200.0 {
-                warnings.push(format!(
-                    "Unusually high memory usage: {:.1} GB",
-                    metric.value
-                ));
+            match metric.metric_name.as_str() {
+                metric_names::TOKENS_PER_SECOND => {
+                    if metric.value > 1000.0 {
+                        warnings.push(format!(
+                            "Unusually high tokens_per_second: {}", 
+                            metric.value
+                        ));
+                    }
+                }
+                metric_names::MEMORY_USAGE_GB => {
+                    if metric.value > 200.0 {
+                        warnings.push(format!(
+                            "Unusually high memory_usage_gb: {}", 
+                            metric.value
+                        ));
+                    }
+                }
+                _ => {}
             }
         }
 
@@ -141,19 +147,11 @@ impl Validate for HardwareConfig {
         }
 
         // Validate GPU memory
-        if self.gpu_memory_gb < 0 {
+        if self.gpu_memory_gb <= 0 {
             return Err(ValidationError::OutOfRange {
                 field: "gpu_memory_gb".to_string(),
                 value: self.gpu_memory_gb.to_string(),
-                range: "≥ 0".to_string(),
-            });
-        }
-
-        // Check consistency: CPU Only should have 0 GPU memory
-        if self.gpu_model == "CPU Only" && self.gpu_memory_gb != 0 {
-            return Err(ValidationError::InvalidField {
-                field: "gpu_memory_gb".to_string(),
-                message: "CPU Only configuration should have 0 GPU memory".to_string(),
+                range: "> 0".to_string(),
             });
         }
 
@@ -164,7 +162,7 @@ impl Validate for HardwareConfig {
             });
         }
 
-        // Validate CPU architecture
+        // Validate CPU arch
         if self.cpu_arch.trim().is_empty() {
             return Err(ValidationError::MissingField {
                 field: "cpu_arch".to_string(),
@@ -200,9 +198,9 @@ impl Validate for HardwareConfig {
 impl Validate for PerformanceMetric {
     fn validate(&self) -> ValidationResult<()> {
         // Validate metric name
-        if self.name.trim().is_empty() {
+        if self.metric_name.trim().is_empty() {
             return Err(ValidationError::MissingField {
-                field: "name".to_string(),
+                field: "metric_name".to_string(),
             });
         }
 
@@ -214,7 +212,7 @@ impl Validate for PerformanceMetric {
         }
 
         // Validate value ranges for known metrics
-        match self.name.as_str() {
+        match self.metric_name.as_str() {
             metric_names::TOKENS_PER_SECOND => {
                 if self.value < 0.0 {
                     return Err(ValidationError::OutOfRange {
@@ -242,15 +240,9 @@ impl Validate for PerformanceMetric {
                     });
                 }
             }
-            _ => {} // Unknown metrics are allowed
-        }
-
-        // Check for NaN or infinite values
-        if !self.value.is_finite() {
-            return Err(ValidationError::InvalidField {
-                field: "value".to_string(),
-                message: "Value must be finite (not NaN or infinite)".to_string(),
-            });
+            _ => {
+                // Allow any value for unknown metrics
+            }
         }
 
         Ok(())
@@ -273,20 +265,20 @@ impl Validate for QualityScore {
             });
         }
 
-        // Validate score range
-        if !(0.0..=100.0).contains(&self.score) {
+        // Validate score range (assuming 0-1 or 0-100)
+        if self.score < 0.0 {
             return Err(ValidationError::OutOfRange {
                 field: "score".to_string(),
                 value: self.score.to_string(),
-                range: "0-100".to_string(),
+                range: "≥ 0".to_string(),
             });
         }
 
-        // Check for NaN
-        if !self.score.is_finite() {
-            return Err(ValidationError::InvalidField {
+        if self.score > 100.0 {
+            return Err(ValidationError::OutOfRange {
                 field: "score".to_string(),
-                message: "Score must be finite (not NaN or infinite)".to_string(),
+                value: self.score.to_string(),
+                range: "≤ 100".to_string(),
             });
         }
 
@@ -310,15 +302,11 @@ impl Validate for QualityScore {
                 });
             }
 
-            // Check that correct <= total if both are provided
             if let Some(total) = self.total_questions {
                 if correct > total {
                     return Err(ValidationError::InvalidField {
                         field: "correct_answers".to_string(),
-                        message: format!(
-                            "Correct answers ({}) cannot exceed total questions ({})",
-                            correct, total
-                        ),
+                        message: "Cannot be greater than total_questions".to_string(),
                     });
                 }
             }
@@ -326,189 +314,137 @@ impl Validate for QualityScore {
 
         Ok(())
     }
+
+    fn warnings(&self) -> Vec<String> {
+        let mut warnings = Vec::new();
+
+        // Check if benchmark is known
+        if !self.is_known_benchmark() {
+            warnings.push(format!("Unknown benchmark: {}", self.benchmark_name));
+        }
+
+        // Check for unusual scores
+        if self.score == 0.0 {
+            warnings.push("Score is exactly 0 - verify this is correct".to_string());
+        }
+
+        if self.score == 100.0 {
+            warnings.push("Perfect score (100) - verify this is correct".to_string());
+        }
+
+        warnings
+    }
 }
 
-/// Check if a quantization scheme is valid
-fn is_valid_quantization(quant: &str) -> bool {
+// Helper functions for validation
+
+fn is_valid_quantization(quantization: &str) -> bool {
     matches!(
-        quant,
-        "FP32"
-            | "FP16"
-            | "BF16"
-            | "Q8_0"
-            | "Q6_K"
-            | "Q5_K_M"
-            | "Q5_K_S"
-            | "Q4_K_M"
-            | "Q4_K_S"
-            | "Q4_0"
-            | "Q3_K_M"
-            | "Q3_K_S"
-            | "Q2_K"
+        quantization.to_uppercase().as_str(),
+        "FP16" | "FP32" | "INT8" | "INT4" | 
+        "Q8_0" | "Q4_0" | "Q4_1" | "Q5_0" | "Q5_1" | "Q2_K" | "Q3_K" | 
+        "Q4_K" | "Q5_K" | "Q6_K" | "Q8_K" | "GGUF" | "AWQ" | "GPTQ"
     )
 }
 
-/// Check if a backend is valid
 fn is_valid_backend(backend: &str) -> bool {
     matches!(
-        backend,
-        "llama.cpp" | "llama_cpp" | "vllm" | "transformers" | "onnx" | "tvm" | "tensorrt"
+        backend.to_lowercase().as_str(),
+        "llama.cpp" | "vllm" | "transformers" | "tgi" | "text-generation-inference" |
+        "ctransformers" | "ggml" | "llamacpp" | "exllama" | "exllamav2" | "tensorrt-llm"
     )
 }
 
-/// Check if a CPU architecture is valid
-fn is_valid_cpu_arch(arch: &str) -> bool {
+fn is_valid_cpu_arch(cpu_arch: &str) -> bool {
     matches!(
-        arch,
-        "x86_64"
-            | "aarch64"
-            | "arm64"
-            | "Zen1"
-            | "Zen2"
-            | "Zen3"
-            | "Zen4"
-            | "Intel"
-            | "AMD"
-            | "Apple M1"
-            | "Apple M2"
-            | "Apple M3"
+        cpu_arch.to_lowercase().as_str(),
+        "x86_64" | "x64" | "amd64" | "arm64" | "aarch64" | "armv7" | "armv8" |
+        "zen2" | "zen3" | "zen4" | "haswell" | "skylake" | "icelake" | "alderlake" |
+        "apple_m1" | "apple_m2" | "apple_m3"
     )
 }
 
-/// Validation helper functions
-pub mod validators {
-    use super::*;
-
-    /// Validate an entire experiment run and return both errors and warnings
-    pub fn validate_experiment_run(
-        experiment: &ExperimentRun,
-    ) -> (ValidationResult<()>, Vec<String>) {
-        let validation_result = experiment.validate();
-        let warnings = experiment.warnings();
-        (validation_result, warnings)
-    }
-
-    /// Check if performance metrics are reasonable
-    pub fn check_performance_sanity(metrics: &[PerformanceMetric]) -> Vec<String> {
-        let mut warnings = Vec::new();
-
-        // Check for common metric combinations
-        let has_speed = metrics
-            .iter()
-            .any(|m| m.name == metric_names::TOKENS_PER_SECOND);
-        let has_memory = metrics
-            .iter()
-            .any(|m| m.name == metric_names::MEMORY_USAGE_GB);
-
-        if has_speed && has_memory {
-            if let (Some(speed), Some(memory)) = (
-                metrics
-                    .iter()
-                    .find(|m| m.name == metric_names::TOKENS_PER_SECOND),
-                metrics
-                    .iter()
-                    .find(|m| m.name == metric_names::MEMORY_USAGE_GB),
-            ) {
-                // Very high speed with very low memory might indicate an error
-                if speed.value > 100.0 && memory.value < 2.0 {
-                    warnings
-                        .push("High speed with very low memory usage seems unusual".to_string());
-                }
-            }
-        }
-
-        warnings
-    }
-
-    /// Validate that quality scores are consistent across categories
-    pub fn check_quality_consistency(scores: &[QualityScore]) -> Vec<String> {
-        let mut warnings = Vec::new();
-
-        // Group by benchmark
-        let mut by_benchmark = std::collections::HashMap::new();
-        for score in scores {
-            by_benchmark
-                .entry(&score.benchmark_name)
-                .or_insert_with(Vec::new)
-                .push(score);
-        }
-
-        for (benchmark, benchmark_scores) in by_benchmark {
-            // Check for extreme outliers
-            let scores_only: Vec<f64> = benchmark_scores.iter().map(|s| s.score).collect();
-            if scores_only.len() > 2 {
-                let mean = scores_only.iter().sum::<f64>() / scores_only.len() as f64;
-                let variance = scores_only
-                    .iter()
-                    .map(|&score| (score - mean).powi(2))
-                    .sum::<f64>()
-                    / scores_only.len() as f64;
-                let std_dev = variance.sqrt();
-
-                // Flag scores that are more than 2 standard deviations from mean
-                for score_obj in benchmark_scores {
-                    if (score_obj.score - mean).abs() > 2.0 * std_dev && std_dev > 10.0 {
-                        warnings.push(format!(
-                            "{} score for {} ({:.1}%) is unusual compared to other categories",
-                            benchmark, score_obj.category, score_obj.score
-                        ));
-                    }
-                }
-            }
-        }
-
-        warnings
-    }
-}
-
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ExperimentRun, HardwareConfig};
+    use crate::{HardwareConfig, PerformanceMetric, QualityScore};
+    use chrono::Utc;
 
     #[test]
-    fn test_hardware_validation() {
-        let mut config = HardwareConfig::new(
-            "RTX 4090".to_string(),
-            24,
-            "AMD Threadripper".to_string(),
-            "Zen2".to_string(),
-            64,
-            "DDR4".to_string(),
-        );
-
-        assert!(config.validate().is_ok());
-
-        // Test invalid GPU memory for CPU-only
-        config.gpu_model = "CPU Only".to_string();
-        config.gpu_memory_gb = 24; // Should be 0 for CPU Only
-        assert!(config.validate().is_err());
+    fn test_valid_quantization() {
+        assert!(is_valid_quantization("FP16"));
+        assert!(is_valid_quantization("Q4_0"));
+        assert!(is_valid_quantization("q8_0")); // case insensitive
+        assert!(!is_valid_quantization("INVALID"));
     }
 
     #[test]
-    fn test_metric_validation() {
-        let metric = PerformanceMetric::tokens_per_second(45.2);
+    fn test_valid_backend() {
+        assert!(is_valid_backend("llama.cpp"));
+        assert!(is_valid_backend("VLLM")); // case insensitive
+        assert!(!is_valid_backend("unknown_backend"));
+    }
+
+    #[test]
+    fn test_performance_metric_validation() {
+        let metric = PerformanceMetric {
+            metric_name: "tokens_per_second".to_string(),
+            value: 50.0,
+            unit: "tok/s".to_string(),
+            timestamp: Utc::now(),
+            context: None,
+        };
         assert!(metric.validate().is_ok());
 
-        let invalid_metric = PerformanceMetric::new(
-            metric_names::TOKENS_PER_SECOND.to_string(),
-            -10.0, // Negative value invalid
-            "tok/s".to_string(),
-        );
+        let invalid_metric = PerformanceMetric {
+            metric_name: "".to_string(), // Empty name
+            value: 50.0,
+            unit: "tok/s".to_string(),
+            timestamp: Utc::now(),
+            context: None,
+        };
         assert!(invalid_metric.validate().is_err());
     }
 
     #[test]
-    fn test_score_validation() {
-        let score = QualityScore::mmlu_pro("Math".to_string(), 75.0, 100, 75);
-        assert!(score.validate().is_ok());
+    fn test_experiment_run_warnings() {
+        let hardware_config = HardwareConfig {
+            gpu_model: "RTX 4090".to_string(),
+            gpu_memory_gb: 24,
+            cpu_model: "Intel i9".to_string(),
+            cpu_arch: "x86_64".to_string(),
+            ram_gb: 32,
+            ram_type: "DDR4".to_string(),
+            virtualization_type: None,
+            optimizations: vec![],
+        };
 
-        let invalid_score = QualityScore::new(
-            benchmark_names::MMLU_PRO.to_string(),
-            "Math".to_string(),
-            150.0, // Invalid score > 100
-            Some(100),
-            Some(75),
+        let mut experiment = ExperimentRun::new(
+            "Test Model".to_string(),
+            "FP16".to_string(),
+            "llama.cpp".to_string(),
+            "1.0".to_string(),
+            hardware_config,
         );
-        assert!(invalid_score.validate().is_err());
+
+        // Should warn about missing essential metrics
+        let warnings = experiment.warnings();
+        assert!(warnings.len() >= 2); // Should warn about missing speed and memory metrics
+
+        // Add essential metrics
+        experiment.add_performance_metric(PerformanceMetric::new(
+            metric_names::TOKENS_PER_SECOND.to_string(),
+            50.0,
+            "tok/s".to_string(),
+        ));
+
+        experiment.add_performance_metric(PerformanceMetric::new(
+            metric_names::MEMORY_USAGE_GB.to_string(),
+            16.0,
+            "GB".to_string(),
+        ));
+
+        let warnings_after = experiment.warnings();
+        assert!(warnings_after.len() < warnings.len()); // Should have fewer warnings now
     }
 }

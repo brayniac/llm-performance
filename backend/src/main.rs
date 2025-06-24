@@ -1,15 +1,19 @@
+// backend/src/main.rs
 use axum::{
-    routing::get,
+    routing::{get, post},
     Router,
 };
 use sqlx::PgPool;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 
+// Import the types crate
+use llm_benchmark_types::HealthResponse;
+
 mod models;
 mod handlers;
 
-use handlers::{get_performance_grid, get_comparison, get_configurations, get_detail};
+use handlers::{get_performance_grid, get_comparison, get_configurations, get_detail, upload_experiment};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -41,6 +45,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/comparison", get(get_comparison))
         .route("/api/configurations", get(get_configurations))
         .route("/api/detail/:test_run_id", get(get_detail))
+        .route("/api/upload-experiment", post(upload_experiment)) // New endpoint
         .route("/health", get(health_check))
         // Serve static files (your built frontend)
         .nest_service("/", ServeDir::new("../frontend/build"))
@@ -54,6 +59,6 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn health_check() -> &'static str {
-    "OK"
+async fn health_check() -> axum::Json<HealthResponse> {
+    axum::Json(HealthResponse::healthy())
 }
