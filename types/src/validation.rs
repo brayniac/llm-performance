@@ -345,37 +345,20 @@ impl Validate for QualityScore {
 fn is_valid_quantization(quantization: &str) -> bool {
     let quant_upper = quantization.to_uppercase();
     
-    // Check base quantization formats
-    if matches!(
+    // Comprehensive list of supported quantization formats
+    matches!(
         quant_upper.as_str(),
-        "FP16" | "FP32" | "INT8" | "INT4" | 
-        "Q8_0" | "Q4_0" | "Q4_1" | "Q5_0" | "Q5_1" | 
-        "GGUF" | "AWQ" | "GPTQ"
-    ) {
-        return true;
-    }
-    
-    // Check K-quant variants (with optional _S, _M, _L suffixes)
-    if quant_upper.starts_with("Q2_K") || 
-       quant_upper.starts_with("Q3_K") ||
-       quant_upper.starts_with("Q4_K") ||
-       quant_upper.starts_with("Q5_K") ||
-       quant_upper.starts_with("Q6_K") ||
-       quant_upper.starts_with("Q8_K") {
-        // Base K-quant is valid
-        if quant_upper.len() == 4 {
-            return true;
-        }
-        // Check for _S, _M, _L suffixes
-        if quant_upper.len() == 6 && 
-           (quant_upper.ends_with("_S") || 
-            quant_upper.ends_with("_M") || 
-            quant_upper.ends_with("_L")) {
-            return true;
-        }
-    }
-    
-    false
+        // Floating point formats
+        "BF16" | "F16" | "FP16" | "F32" | "FP32" |
+        // Standard quantization formats
+        "Q8_0" | "Q6_K" | "Q5_K_M" | "Q5_K_S" | "Q5_1" | "Q5_0" |
+        "Q4_K_M" | "Q4_K_S" | "Q4_1" | "Q4_0" |
+        "Q3_K_L" | "Q3_K_M" | "Q3_K_S" | "Q2_K" |
+        // IQ (Integer Quantization) formats
+        "IQ4_XS" | "IQ4_NL" | "IQ3_M" |
+        // Other formats
+        "INT8" | "INT4" | "GGUF" | "AWQ" | "GPTQ"
+    )
 }
 
 fn is_valid_backend(backend: &str) -> bool {
@@ -403,10 +386,35 @@ mod tests {
 
     #[test]
     fn test_valid_quantization() {
+        // Test floating point formats
+        assert!(is_valid_quantization("BF16"));
+        assert!(is_valid_quantization("F16"));
         assert!(is_valid_quantization("FP16"));
-        assert!(is_valid_quantization("Q4_0"));
-        assert!(is_valid_quantization("q8_0")); // case insensitive
+        
+        // Test standard Q formats
+        assert!(is_valid_quantization("Q8_0"));
+        assert!(is_valid_quantization("Q6_K"));
+        assert!(is_valid_quantization("Q5_K_M"));
+        assert!(is_valid_quantization("Q5_K_S"));
+        assert!(is_valid_quantization("Q4_K_M"));
+        assert!(is_valid_quantization("Q4_K_S"));
+        assert!(is_valid_quantization("Q3_K_L"));
+        assert!(is_valid_quantization("Q3_K_M"));
+        assert!(is_valid_quantization("Q3_K_S"));
+        assert!(is_valid_quantization("Q2_K"));
+        
+        // Test IQ formats
+        assert!(is_valid_quantization("IQ4_XS"));
+        assert!(is_valid_quantization("IQ4_NL"));
+        assert!(is_valid_quantization("IQ3_M"));
+        
+        // Test case insensitivity
+        assert!(is_valid_quantization("q4_k_m"));
+        assert!(is_valid_quantization("iq4_xs"));
+        
+        // Test invalid formats
         assert!(!is_valid_quantization("INVALID"));
+        assert!(!is_valid_quantization("Q3_K_XL"));
     }
 
     #[test]
@@ -444,8 +452,8 @@ mod tests {
             gpu_memory_gb: 24,
             cpu_model: "Intel i9".to_string(),
             cpu_arch: "x86_64".to_string(),
-            ram_gb: 32,
-            ram_type: "DDR4".to_string(),
+            ram_gb: Some(32),
+            ram_type: Some("DDR4".to_string()),
             virtualization_type: None,
             optimizations: vec![],
         };
