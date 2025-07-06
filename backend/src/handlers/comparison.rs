@@ -10,10 +10,14 @@ use uuid::Uuid;
 use std::collections::HashMap;
 
 use llm_benchmark_types::{
-    ComparisonRequest, ComparisonData, ErrorResponse
+    ComparisonRequest, ComparisonData, ErrorResponse,
+    BenchmarkScore  // Import trait for overall_score method
 };
 
-use crate::{models::PerformanceMetricQueryResult, AppState};
+use crate::{
+    models::{PerformanceMetricQueryResult, benchmark_queries},
+    AppState
+};
 
 /// Compare two configurations
 pub async fn get_comparison(
@@ -100,19 +104,10 @@ async fn get_config_data_by_uuid(
         .map(|row| (row.metric_name, row.value))
         .collect();
 
-    // Get overall score
-    let overall_score_result = sqlx::query!(
-        r#"
-        SELECT AVG(score) as avg_score
-        FROM quality_scores
-        WHERE test_run_id = $1
-        "#,
-        test_run.test_run_id
-    )
-    .fetch_one(db)
-    .await?;
-
-    let overall_score = overall_score_result.avg_score.unwrap_or(0.0);
+    // Get overall score from aggregated benchmark scores
+    let overall_score = benchmark_queries::get_aggregated_benchmark_scores_for_test_run(db, &test_run.test_run_id)
+        .await
+        .unwrap_or(0.0);
 
     let config_summary = llm_benchmark_types::ConfigSummary {
         name: format!("{} {}", test_run.model_name, test_run.quantization),
@@ -137,53 +132,92 @@ async fn get_category_comparison(
     run_a_id: &Uuid,
     run_b_id: &Uuid,
 ) -> Result<Vec<llm_benchmark_types::CategoryComparison>, sqlx::Error> {
-    let categories = sqlx::query!(
-        r#"
-        SELECT 
-            a.category,
-            a.score as score_a,
-            b.score as score_b
-        FROM quality_scores a
-        JOIN quality_scores b ON a.category = b.category
-        WHERE a.test_run_id = $1 AND b.test_run_id = $2
-        ORDER BY a.category
-        "#,
-        run_a_id, run_b_id
-    )
-    .fetch_all(db)
-    .await?;
-
-    // Handle the case where we don't have matching categories
-    if categories.is_empty() {
-        // Get categories from run A only as fallback
-        let categories_a = sqlx::query!(
-            r#"
-            SELECT category, score
-            FROM quality_scores
-            WHERE test_run_id = $1
-            ORDER BY category
-            "#,
-            run_a_id
-        )
-        .fetch_all(db)
-        .await?;
-
-        return Ok(categories_a
-            .into_iter()
-            .map(|row| llm_benchmark_types::CategoryComparison {
-                name: row.category,
-                score_a: row.score,
-                score_b: 0.0, // Default if no matching category
-            })
-            .collect());
+    use llm_benchmark_types::BenchmarkScoreType;
+    use std::collections::HashMap;
+    
+    // Get benchmark scores for both test runs
+    let scores_a = benchmark_queries::get_all_benchmark_scores_for_test_run(db, run_a_id).await?;
+    let scores_b = benchmark_queries::get_all_benchmark_scores_for_test_run(db, run_b_id).await?;
+    
+    // Build a map of category names to scores for easier comparison
+    let mut scores_map: HashMap<String, (Option<f64>, Option<f64>)> = HashMap::new();
+    
+    // Helper to add scores to the map
+    let mut add_score = |name: String, score: f64, is_a: bool| {
+        let entry = scores_map.entry(name).or_insert((None, None));
+        if is_a {
+            entry.0 = Some(score);
+        } else {
+            entry.1 = Some(score);
+        }
+    };
+    
+    // Process scores from test run A
+    for score in scores_a {
+        match score {
+            BenchmarkScoreType::MMLU(mmlu) => {
+                for category in &mmlu.categories {
+                    add_score(format!("MMLU - {}", category.category), category.score, true);
+                }
+            }
+            BenchmarkScoreType::GSM8K(gsm8k) => {
+                add_score("GSM8K".to_string(), gsm8k.overall_score(), true);
+            }
+            BenchmarkScoreType::HumanEval(humaneval) => {
+                add_score("HumanEval".to_string(), humaneval.pass_at_1, true);
+            }
+            BenchmarkScoreType::HellaSwag(hellaswag) => {
+                add_score("HellaSwag".to_string(), hellaswag.accuracy, true);
+            }
+            BenchmarkScoreType::TruthfulQA(truthfulqa) => {
+                add_score("TruthfulQA".to_string(), truthfulqa.truthful_score, true);
+            }
+            BenchmarkScoreType::Generic(generic) => {
+                add_score(generic.benchmark_name.clone(), generic.score, true);
+            }
+        }
     }
-
-    Ok(categories
+    
+    // Process scores from test run B
+    for score in scores_b {
+        match score {
+            BenchmarkScoreType::MMLU(mmlu) => {
+                for category in &mmlu.categories {
+                    add_score(format!("MMLU - {}", category.category), category.score, false);
+                }
+            }
+            BenchmarkScoreType::GSM8K(gsm8k) => {
+                add_score("GSM8K".to_string(), gsm8k.overall_score(), false);
+            }
+            BenchmarkScoreType::HumanEval(humaneval) => {
+                add_score("HumanEval".to_string(), humaneval.pass_at_1, false);
+            }
+            BenchmarkScoreType::HellaSwag(hellaswag) => {
+                add_score("HellaSwag".to_string(), hellaswag.accuracy, false);
+            }
+            BenchmarkScoreType::TruthfulQA(truthfulqa) => {
+                add_score("TruthfulQA".to_string(), truthfulqa.truthful_score, false);
+            }
+            BenchmarkScoreType::Generic(generic) => {
+                add_score(generic.benchmark_name.clone(), generic.score, false);
+            }
+        }
+    }
+    
+    // Convert map to comparison vector
+    let mut comparisons: Vec<llm_benchmark_types::CategoryComparison> = scores_map
         .into_iter()
-        .map(|row| llm_benchmark_types::CategoryComparison {
-            name: row.category,
-            score_a: row.score_a,
-            score_b: row.score_b,
+        .map(|(name, (score_a, score_b))| {
+            llm_benchmark_types::CategoryComparison {
+                name,
+                score_a: score_a.unwrap_or(0.0),
+                score_b: score_b.unwrap_or(0.0),
+            }
         })
-        .collect())
+        .collect();
+    
+    // Sort by name for consistent ordering
+    comparisons.sort_by(|a, b| a.name.cmp(&b.name));
+    
+    Ok(comparisons)
 }

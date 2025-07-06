@@ -2,13 +2,13 @@
 // Conversion implementations between database types and API types
 
 use llm_benchmark_types::{
-    PerformanceGridRow, CategoryScore, ExperimentSummary, ExperimentStatus,
-    HardwareConfig, SystemInfo, PerformanceMetric, QualityScore
+    PerformanceGridRow, ExperimentSummary, ExperimentStatus,
+    HardwareConfig, SystemInfo, PerformanceMetric
 };
 
 use super::{
-    database::{TestRunRow, HardwareProfileRow, PerformanceMetricRow, QualityScoreRow},
-    query_results::{PerformanceGridQueryResult, QualityScoreQueryResult}
+    database::{TestRunRow, HardwareProfileRow, PerformanceMetricRow},
+    query_results::PerformanceGridQueryResult
 };
 
 // Conversion from query results to API types
@@ -31,17 +31,6 @@ impl From<PerformanceGridQueryResult> for PerformanceGridRow {
             cpu_arch: row.cpu_arch,
             hardware_type,
             overall_score: row.overall_score,
-        }
-    }
-}
-
-impl From<QualityScoreQueryResult> for CategoryScore {
-    fn from(row: QualityScoreQueryResult) -> Self {
-        Self {
-            name: row.category,
-            score: row.score,
-            total_questions: row.total_questions,
-            correct_answers: row.correct_answers,
         }
     }
 }
@@ -91,8 +80,8 @@ impl HardwareProfileRow {
             gpu_memory_gb: self.gpu_memory_gb,
             cpu_model: self.cpu_model.clone(),
             cpu_arch: self.cpu_arch.clone(),
-            ram_gb: self.ram_gb,
-            ram_type: self.ram_type.clone(),
+            ram_gb: self.ram_gb.unwrap_or(0),
+            ram_type: self.ram_type.clone().unwrap_or_else(|| "Unknown".to_string()),
             virtualization_type: self.virtualization_type.clone(),
             optimizations: self.optimizations.clone(),
         }
@@ -105,20 +94,6 @@ impl PerformanceMetricRow {
             metric_name: self.metric_name.clone(),
             value: self.value,
             unit: self.unit.clone(),
-            timestamp: chrono::Utc::now(),
-            context: None,
-        }
-    }
-}
-
-impl QualityScoreRow {
-    pub fn to_quality_score(&self) -> QualityScore {
-        QualityScore {
-            benchmark_name: self.benchmark_name.clone(),
-            category: self.category.clone(),
-            score: self.score,
-            total_questions: None,
-            correct_answers: None,
             timestamp: chrono::Utc::now(),
             context: None,
         }

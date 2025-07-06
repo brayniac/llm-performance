@@ -10,10 +10,14 @@ use uuid::Uuid;
 use std::collections::HashMap;
 
 use llm_benchmark_types::{
-    DetailData, ErrorResponse, ExperimentSummary, ConfigurationListResponse
+    DetailData, ErrorResponse, ExperimentSummary, ConfigurationListResponse,
+    BenchmarkScore  // Import trait for overall_score method
 };
 
-use crate::{models::{PerformanceMetricQueryResult, QualityScoreQueryResult}, AppState};
+use crate::{
+    models::{PerformanceMetricQueryResult, benchmark_queries},
+    AppState
+};
 
 /// Get list of available configurations
 pub async fn get_configurations(
@@ -27,12 +31,12 @@ pub async fn get_configurations(
             tr.quantization,
             tr.backend,
             CONCAT(hp.gpu_model, ' / ', hp.cpu_arch) as hardware_summary,
-            AVG(qs.score) as overall_score,
+            NULL as overall_score,
             tr.timestamp,
             tr.status
         FROM test_runs tr
         JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id
-        LEFT JOIN quality_scores qs ON tr.id = qs.test_run_id
+        -- Benchmark scores now handled separately
         WHERE tr.status = 'completed'
         GROUP BY tr.id, tr.model_name, tr.quantization, tr.backend, 
                  hp.gpu_model, hp.cpu_arch, tr.timestamp, tr.status
@@ -48,15 +52,20 @@ pub async fn get_configurations(
         )
     })?;
 
-    let configurations: Vec<ExperimentSummary> = experiments
-        .into_iter()
-        .map(|row| ExperimentSummary {
+    let mut configurations = Vec::new();
+    for row in experiments {
+        // Get aggregated benchmark score for this test run
+        let overall_score = benchmark_queries::get_aggregated_benchmark_scores_for_test_run(&state.db, &row.id)
+            .await
+            .ok();
+        
+        configurations.push(ExperimentSummary {
             id: row.id,
             model_name: row.model_name,
             quantization: row.quantization,
             backend: row.backend,
             hardware_summary: row.hardware_summary.unwrap_or_default(),
-            overall_score: row.overall_score,
+            overall_score,
             timestamp: row.timestamp.unwrap_or_else(|| chrono::Utc::now()),
             status: match row.status.as_str() {
                 "pending" => llm_benchmark_types::ExperimentStatus::Pending,
@@ -66,8 +75,8 @@ pub async fn get_configurations(
                 "cancelled" => llm_benchmark_types::ExperimentStatus::Cancelled,
                 _ => llm_benchmark_types::ExperimentStatus::Completed,
             },
-        })
-        .collect();
+        });
+    }
 
     let total_count = configurations.len();
 
@@ -158,19 +167,10 @@ async fn get_detailed_config_data(
         .map(|row| (row.metric_name, row.value))
         .collect();
 
-    // Get overall score
-    let overall_score_result = sqlx::query!(
-        r#"
-        SELECT AVG(score) as avg_score
-        FROM quality_scores
-        WHERE test_run_id = $1
-        "#,
-        result.test_run_id
-    )
-    .fetch_one(db)
-    .await?;
-
-    let overall_score = overall_score_result.avg_score.unwrap_or(0.0);
+    // Get overall score from aggregated benchmark scores
+    let overall_score = benchmark_queries::get_aggregated_benchmark_scores_for_test_run(db, &result.test_run_id)
+        .await
+        .unwrap_or(0.0);
 
     let config_detail = llm_benchmark_types::ConfigDetail {
         name: format!("{} {}", result.model_name, result.quantization),
@@ -193,8 +193,8 @@ async fn get_detailed_config_data(
         gpu_memory_gb: result.gpu_memory_gb,
         cpu_model: result.cpu_model,
         cpu_arch: result.cpu_arch,
-        ram_gb: result.ram_gb,
-        ram_type: result.ram_type,
+        ram_gb: result.ram_gb.unwrap_or(0),
+        ram_type: result.ram_type.unwrap_or_else(|| "Unknown".to_string()),
         virtualization_type: result.virtualization_type,
         optimizations: result.optimizations.unwrap_or_default(),
     };
@@ -206,23 +206,66 @@ async fn get_category_scores(
     db: &sqlx::PgPool,
     test_run_id: &Uuid,
 ) -> Result<Vec<llm_benchmark_types::CategoryScore>, sqlx::Error> {
-    let categories = sqlx::query_as!(
-        QualityScoreQueryResult,
-        r#"
-        SELECT 
-            benchmark_name,
-            category,
-            score,
-            NULL::int as total_questions,
-            NULL::int as correct_answers
-        FROM quality_scores
-        WHERE test_run_id = $1
-        ORDER BY category
-        "#,
-        test_run_id
-    )
-    .fetch_all(db)
-    .await?;
-
-    Ok(categories.into_iter().map(Into::into).collect())
+    // Get all benchmark scores for this test run
+    let benchmark_scores = benchmark_queries::get_all_benchmark_scores_for_test_run(db, test_run_id).await?;
+    
+    let mut categories = Vec::new();
+    
+    // Convert benchmark scores to category scores for display
+    for score in benchmark_scores {
+        match score {
+            llm_benchmark_types::BenchmarkScoreType::MMLU(mmlu) => {
+                for category in &mmlu.categories {
+                    categories.push(llm_benchmark_types::CategoryScore {
+                        name: format!("MMLU - {}", category.category),
+                        score: category.score,
+                        total_questions: Some(category.total_questions),
+                        correct_answers: Some(category.correct_answers),
+                    });
+                }
+            }
+            llm_benchmark_types::BenchmarkScoreType::GSM8K(gsm8k) => {
+                categories.push(llm_benchmark_types::CategoryScore {
+                    name: "GSM8K".to_string(),
+                    score: gsm8k.overall_score(),
+                    total_questions: Some(gsm8k.total_problems),
+                    correct_answers: Some(gsm8k.problems_solved),
+                });
+            }
+            llm_benchmark_types::BenchmarkScoreType::HumanEval(humaneval) => {
+                categories.push(llm_benchmark_types::CategoryScore {
+                    name: "HumanEval".to_string(),
+                    score: humaneval.pass_at_1,
+                    total_questions: Some(humaneval.total_problems),
+                    correct_answers: None,
+                });
+            }
+            llm_benchmark_types::BenchmarkScoreType::HellaSwag(hellaswag) => {
+                categories.push(llm_benchmark_types::CategoryScore {
+                    name: "HellaSwag".to_string(),
+                    score: hellaswag.accuracy,
+                    total_questions: Some(hellaswag.total_questions),
+                    correct_answers: Some(hellaswag.correct_answers),
+                });
+            }
+            llm_benchmark_types::BenchmarkScoreType::TruthfulQA(truthfulqa) => {
+                categories.push(llm_benchmark_types::CategoryScore {
+                    name: "TruthfulQA".to_string(),
+                    score: truthfulqa.truthful_score,
+                    total_questions: Some(truthfulqa.total_questions),
+                    correct_answers: None,
+                });
+            }
+            llm_benchmark_types::BenchmarkScoreType::Generic(generic) => {
+                categories.push(llm_benchmark_types::CategoryScore {
+                    name: generic.benchmark_name.clone(),
+                    score: generic.score,
+                    total_questions: generic.total_questions,
+                    correct_answers: generic.correct_answers,
+                });
+            }
+        }
+    }
+    
+    Ok(categories)
 }

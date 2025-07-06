@@ -1,8 +1,8 @@
 // llm-benchmark-types/src/validation.rs
 
 use crate::{
-    ExperimentRun, HardwareConfig, PerformanceMetric, QualityScore,
-    ValidationError, ValidationResult, metric_names,
+    ExperimentRun, HardwareConfig, PerformanceMetric, BenchmarkScore,
+    QualityScore, ValidationError, ValidationResult, metric_names,
 };
 
 /// Validation trait for experiment data
@@ -70,15 +70,15 @@ impl Validate for ExperimentRun {
             })?;
         }
 
-        // Validate quality scores
-        for (i, score) in self.quality_scores.iter().enumerate() {
+        // Validate benchmark scores
+        for (i, score) in self.benchmark_scores.iter().enumerate() {
             score.validate().map_err(|e| match e {
                 ValidationError::InvalidField { field, message } => ValidationError::InvalidField {
-                    field: format!("quality_scores[{}].{}", i, field),
+                    field: format!("benchmark_scores[{}].{}", i, field),
                     message,
                 },
                 ValidationError::MissingField { field } => ValidationError::MissingField {
-                    field: format!("quality_scores[{}].{}", i, field),
+                    field: format!("benchmark_scores[{}].{}", i, field),
                 },
                 other => other,
             })?;
@@ -176,19 +176,23 @@ impl Validate for HardwareConfig {
             });
         }
 
-        // Validate RAM
-        if self.ram_gb <= 0 {
-            return Err(ValidationError::OutOfRange {
-                field: "ram_gb".to_string(),
-                value: self.ram_gb.to_string(),
-                range: "> 0".to_string(),
-            });
+        // Validate RAM (if provided)
+        if let Some(ram_gb) = self.ram_gb {
+            if ram_gb <= 0 {
+                return Err(ValidationError::OutOfRange {
+                    field: "ram_gb".to_string(),
+                    value: ram_gb.to_string(),
+                    range: "> 0".to_string(),
+                });
+            }
         }
 
-        if self.ram_type.trim().is_empty() {
-            return Err(ValidationError::MissingField {
-                field: "ram_type".to_string(),
-            });
+        if let Some(ram_type) = &self.ram_type {
+            if ram_type.trim().is_empty() {
+                return Err(ValidationError::MissingField {
+                    field: "ram_type".to_string(),
+                });
+            }
         }
 
         Ok(())
@@ -339,12 +343,39 @@ impl Validate for QualityScore {
 // Helper functions for validation
 
 fn is_valid_quantization(quantization: &str) -> bool {
-    matches!(
-        quantization.to_uppercase().as_str(),
+    let quant_upper = quantization.to_uppercase();
+    
+    // Check base quantization formats
+    if matches!(
+        quant_upper.as_str(),
         "FP16" | "FP32" | "INT8" | "INT4" | 
-        "Q8_0" | "Q4_0" | "Q4_1" | "Q5_0" | "Q5_1" | "Q2_K" | "Q3_K" | 
-        "Q4_K" | "Q5_K" | "Q6_K" | "Q8_K" | "GGUF" | "AWQ" | "GPTQ"
-    )
+        "Q8_0" | "Q4_0" | "Q4_1" | "Q5_0" | "Q5_1" | 
+        "GGUF" | "AWQ" | "GPTQ"
+    ) {
+        return true;
+    }
+    
+    // Check K-quant variants (with optional _S, _M, _L suffixes)
+    if quant_upper.starts_with("Q2_K") || 
+       quant_upper.starts_with("Q3_K") ||
+       quant_upper.starts_with("Q4_K") ||
+       quant_upper.starts_with("Q5_K") ||
+       quant_upper.starts_with("Q6_K") ||
+       quant_upper.starts_with("Q8_K") {
+        // Base K-quant is valid
+        if quant_upper.len() == 4 {
+            return true;
+        }
+        // Check for _S, _M, _L suffixes
+        if quant_upper.len() == 6 && 
+           (quant_upper.ends_with("_S") || 
+            quant_upper.ends_with("_M") || 
+            quant_upper.ends_with("_L")) {
+            return true;
+        }
+    }
+    
+    false
 }
 
 fn is_valid_backend(backend: &str) -> bool {
@@ -367,7 +398,7 @@ fn is_valid_cpu_arch(cpu_arch: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{HardwareConfig, PerformanceMetric, QualityScore};
+    use crate::{HardwareConfig, PerformanceMetric};
     use chrono::Utc;
 
     #[test]

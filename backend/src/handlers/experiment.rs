@@ -104,26 +104,16 @@ pub async fn upload_experiment(
         })?;
     }
 
-    // Insert quality scores
-    for score in &request.experiment_run.quality_scores {
-        sqlx::query!(
-            r#"
-            INSERT INTO quality_scores (test_run_id, benchmark_name, category, score)
-            VALUES ($1, $2, $3, $4)
-            "#,
-            test_run_id,
-            score.benchmark_name,
-            score.category,
-            score.score
-        )
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(ErrorResponse::new(format!("Failed to insert quality score: {}", e))),
-            )
-        })?;
+    // Insert benchmark scores
+    for score in &request.experiment_run.benchmark_scores {
+        crate::models::benchmark_queries::insert_benchmark_score(&mut tx, &test_run_id, score)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse::new(format!("Failed to insert benchmark score: {}", e))),
+                )
+            })?;
     }
 
     // Commit transaction
@@ -150,7 +140,8 @@ async fn insert_or_find_hardware_profile(
         r#"
         SELECT id FROM hardware_profiles
         WHERE gpu_model = $1 AND cpu_model = $2 AND cpu_arch = $3 
-              AND ram_gb = $4 AND ram_type = $5
+              AND ((ram_gb IS NULL AND $4::INT IS NULL) OR ram_gb = $4)
+              AND ((ram_type IS NULL AND $5::TEXT IS NULL) OR ram_type = $5)
         "#,
         hardware_config.gpu_model,
         hardware_config.cpu_model,

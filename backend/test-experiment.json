@@ -1,0 +1,80 @@
+{
+  "experiment_run": {
+    "model_name": "llama-3-8b",
+    "quantization": "Q4_0",
+    "backend": "llama.cpp",
+    "backend_version": "b3166",
+    "hardware_config": {
+      "gpu_model": "RTX 4090",
+      "gpu_memory_gb": 24,
+      "cpu_model": "AMD Ryzen 9 7950X",
+      "cpu_arch": "zen4",
+      "ram_gb": 64,
+      "ram_type": "DDR5",
+      "virtualization_type": null,
+      "optimizations": ["AVX2", "CUDA"]
+    },
+    "performance_metrics": [
+      {
+        "metric_name": "tokens_per_second",
+        "value": 125.5,
+        "unit": "tokens/sec",
+        "timestamp": "2025-01-06T10:00:00Z",
+        "context": {"batch_size": 1, "context_length": 2048}
+      },
+      {
+        "metric_name": "memory_usage_gb",
+        "value": 8.2,
+        "unit": "GB",
+        "timestamp": "2025-01-06T10:00:00Z",
+        "context": null
+      }
+    ],
+    "benchmark_scores": [
+      {
+        "type": "MMLU",
+        "data": {
+          "categories": [
+            {
+              "category": "STEM",
+              "score": 78.0,
+              "total_questions": 500,
+              "correct_answers": 390
+            },
+            {
+              "category": "Humanities",
+              "score": 82.0,
+              "total_questions": 400,
+              "correct_answers": 328
+            }
+          ],
+          "timestamp": "2025-01-06T10:00:00Z",
+          "context": null
+        }
+      },
+      {
+        "type": "GSM8K",
+        "data": {
+          "problems_solved": 850,
+          "total_problems": 1319,
+          "timestamp": "2025-01-06T10:00:00Z",
+          "context": null
+        }
+      },
+      {
+        "type": "HumanEval",
+        "data": {
+          "pass_at_1": 0.42,
+          "pass_at_10": 0.68,
+          "pass_at_100": 0.89,
+          "total_problems": 164,
+          "timestamp": "2025-01-06T10:00:00Z",
+          "context": null
+        }
+      }
+    ],
+    "timestamp": "2025-01-06T10:00:00Z",
+    "status": "completed",
+    "notes": "Test run with new benchmark structure"
+  }
+}

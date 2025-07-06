@@ -1,0 +1,75 @@
+[
+  {
+    "type": "MMLU",
+    "data": {
+      "categories": [
+        {
+          "category": "STEM",
+          "score": 78.5,
+          "total_questions": 500,
+          "correct_answers": 392
+        },
+        {
+          "category": "Humanities", 
+          "score": 82.3,
+          "total_questions": 400,
+          "correct_answers": 329
+        },
+        {
+          "category": "Social Sciences",
+          "score": 79.1,
+          "total_questions": 350,
+          "correct_answers": 277
+        },
+        {
+          "category": "Other",
+          "score": 75.8,
+          "total_questions": 250,
+          "correct_answers": 189
+        }
+      ],
+      "timestamp": "2025-01-06T12:00:00Z",
+      "context": null
+    }
+  },
+  {
+    "type": "GSM8K",
+    "data": {
+      "problems_solved": 892,
+      "total_problems": 1319,
+      "timestamp": "2025-01-06T12:30:00Z",
+      "context": null
+    }
+  },
+  {
+    "type": "HumanEval",
+    "data": {
+      "pass_at_1": 0.457,
+      "pass_at_10": 0.712,
+      "pass_at_100": 0.895,
+      "total_problems": 164,
+      "timestamp": "2025-01-06T13:00:00Z",
+      "context": null
+    }
+  },
+  {
+    "type": "HellaSwag", 
+    "data": {
+      "accuracy": 0.823,
+      "total_questions": 10042,
+      "correct_answers": 8265,
+      "timestamp": "2025-01-06T13:30:00Z",
+      "context": null
+    }
+  },
+  {
+    "type": "TruthfulQA",
+    "data": {
+      "truthful_score": 0.512,
+      "helpful_score": 0.893,
+      "total_questions": 817,
+      "timestamp": "2025-01-06T14:00:00Z",
+      "context": null
+    }
+  }
+]

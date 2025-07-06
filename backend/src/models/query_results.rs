@@ -40,12 +40,3 @@ pub struct PerformanceMetricQueryResult {
     pub unit: String,
 }
 
-/// Result type for quality score queries with optional question counts
-#[derive(Debug, sqlx::FromRow)]
-pub struct QualityScoreQueryResult {
-    pub benchmark_name: String,
-    pub category: String,
-    pub score: f64,
-    pub total_questions: Option<i32>,
-    pub correct_answers: Option<i32>,
-}

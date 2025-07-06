@@ -24,6 +24,27 @@
   function formatBackendName(backend) {
     return backend;
   }
+  
+  function getShortModelName(fullName) {
+    // Extract the model name part after the last '/'
+    const parts = fullName.split('/');
+    const modelPart = parts[parts.length - 1];
+    
+    // Clean up common patterns
+    return modelPart
+      .replace(/-v([0-9.]+)$/, ' v$1') // Replace -v1 with ' v1'
+      .replace(/-([0-9]+B)/, ' $1') // Replace -8B with ' 8B'
+      .replace(/-/g, ' ') // Replace remaining dashes with spaces
+      .trim();
+  }
+  
+  function formatMemory(memoryGb) {
+    return memoryGb.toFixed(1);
+  }
+  
+  function formatSpeed(speed) {
+    return speed.toFixed(1);
+  }
 </script>
 
 <div class="grid">
@@ -39,17 +60,18 @@
   {#each configurations as config (config.id)}
     <div class="grid-row" class:selected={selectedConfigs.includes(config.id)}>
       <div class="model-info">
-        <div class="model-name">{config.model_name}</div>
+        <div class="model-name">{getShortModelName(config.model_name)}</div>
+        <div class="model-slug">{config.model_name}</div>
         <div class="quantization">{config.quantization}</div>
       </div>
       
       <div class="backend">{formatBackendName(config.backend)}</div>
       
       <div class="speed" data-tier={getPerformanceTier(config.tokens_per_second)}>
-        {config.tokens_per_second} tok/s
+        {formatSpeed(config.tokens_per_second)} tok/s
       </div>
       
-      <div class="memory">{config.memory_gb}GB</div>
+      <div class="memory">{formatMemory(config.memory_gb)} GB</div>
       
       <div class="hardware">
         <div class="gpu">{config.gpu_model}</div>
@@ -83,7 +105,7 @@
   
   .grid-row {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 0.8fr;
+    grid-template-columns: 2.5fr 1fr 1fr 0.8fr 1.5fr 0.8fr;
     gap: 1rem;
     padding: 1rem;
     border-bottom: 1px solid #e1e5e9;
@@ -108,12 +130,20 @@
   .model-info .model-name {
     font-weight: 600;
     color: #2c3e50;
+    font-size: 1rem;
+  }
+  
+  .model-info .model-slug {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 2px;
   }
   
   .model-info .quantization {
     font-size: 0.875rem;
     color: #6c757d;
     font-family: monospace;
+    margin-top: 2px;
   }
   
   .speed[data-tier="high"] { 

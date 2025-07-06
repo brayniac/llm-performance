@@ -17,11 +17,11 @@ pub struct HardwareConfig {
     /// CPU architecture (e.g., "Zen1", "Zen2", "x86_64")
     pub cpu_arch: String,
 
-    /// RAM amount in GB
-    pub ram_gb: i32,
+    /// RAM amount in GB (optional - may not be available from all sources)
+    pub ram_gb: Option<i32>,
 
-    /// RAM type (e.g., "DDR4", "DDR5")
-    pub ram_type: String,
+    /// RAM type (e.g., "DDR4", "DDR5") (optional - may not be available from all sources)
+    pub ram_type: Option<String>,
 
     /// Virtualization type if applicable (e.g., "KVM", "Docker")
     pub virtualization_type: Option<String>,
@@ -47,8 +47,8 @@ impl HardwareConfig {
         gpu_memory_gb: i32,
         cpu_model: String,
         cpu_arch: String,
-        ram_gb: i32,
-        ram_type: String,
+        ram_gb: Option<i32>,
+        ram_type: Option<String>,
     ) -> Self {
         Self {
             gpu_model,
@@ -63,7 +63,7 @@ impl HardwareConfig {
     }
 
     /// Create a CPU-only configuration
-    pub fn cpu_only(cpu_model: String, cpu_arch: String, ram_gb: i32, ram_type: String) -> Self {
+    pub fn cpu_only(cpu_model: String, cpu_arch: String, ram_gb: Option<i32>, ram_type: Option<String>) -> Self {
         Self::new(
             "CPU Only".to_string(),
             0,
@@ -104,14 +104,14 @@ impl HardwareConfig {
     pub fn supports_memory_gb(&self, required_gb: i32) -> bool {
         match self.hardware_type() {
             HardwareType::Gpu => self.gpu_memory_gb >= required_gb,
-            HardwareType::CpuOnly => self.ram_gb >= required_gb,
+            HardwareType::CpuOnly => self.ram_gb.map_or(false, |ram| ram >= required_gb),
         }
     }
 
     /// Get effective memory for model loading (GPU memory or RAM)
-    pub fn effective_memory_gb(&self) -> i32 {
+    pub fn effective_memory_gb(&self) -> Option<i32> {
         match self.hardware_type() {
-            HardwareType::Gpu => self.gpu_memory_gb,
+            HardwareType::Gpu => Some(self.gpu_memory_gb),
             HardwareType::CpuOnly => self.ram_gb,
         }
     }
@@ -129,16 +129,27 @@ impl HardwareConfig {
 
 impl std::fmt::Display for HardwareConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{} ({}GB) + {} {} ({}GB {})",
-            self.gpu_model,
-            self.gpu_memory_gb,
-            self.cpu_model,
-            self.cpu_arch,
-            self.ram_gb,
-            self.ram_type
-        )
+        if let (Some(ram_gb), Some(ram_type)) = (self.ram_gb, &self.ram_type) {
+            write!(
+                f,
+                "{} ({}GB) + {} {} ({}GB {})",
+                self.gpu_model,
+                self.gpu_memory_gb,
+                self.cpu_model,
+                self.cpu_arch,
+                ram_gb,
+                ram_type
+            )
+        } else {
+            write!(
+                f,
+                "{} ({}GB) + {} {}",
+                self.gpu_model,
+                self.gpu_memory_gb,
+                self.cpu_model,
+                self.cpu_arch
+            )
+        }
     }
 }
 
@@ -153,16 +164,16 @@ mod tests {
             24,
             "AMD Threadripper".to_string(),
             "Zen2".to_string(),
-            64,
-            "DDR4".to_string(),
+            Some(64),
+            Some("DDR4".to_string()),
         );
         assert_eq!(gpu_config.hardware_type(), HardwareType::Gpu);
 
         let cpu_config = HardwareConfig::cpu_only(
             "Intel i9-13900K".to_string(),
             "x86_64".to_string(),
-            64,
-            "DDR5".to_string(),
+            Some(64),
+            Some("DDR5".to_string()),
         );
         assert_eq!(cpu_config.hardware_type(), HardwareType::CpuOnly);
     }
@@ -174,12 +185,12 @@ mod tests {
             24,
             "AMD Threadripper".to_string(),
             "Zen2".to_string(),
-            64,
-            "DDR4".to_string(),
+            Some(64),
+            Some("DDR4".to_string()),
         );
 
         assert!(config.supports_memory_gb(20));
         assert!(!config.supports_memory_gb(32));
-        assert_eq!(config.effective_memory_gb(), 24);
+        assert_eq!(config.effective_memory_gb(), Some(24));
     }
 }

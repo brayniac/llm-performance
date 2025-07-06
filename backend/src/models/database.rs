@@ -27,8 +27,8 @@ pub struct HardwareProfileRow {
     pub gpu_memory_gb: i32,
     pub cpu_model: String,
     pub cpu_arch: String,
-    pub ram_gb: i32,
-    pub ram_type: String,
+    pub ram_gb: Option<i32>,
+    pub ram_type: Option<String>,
     pub virtualization_type: Option<String>,
     pub optimizations: Vec<String>,
 }
@@ -42,11 +42,3 @@ pub struct PerformanceMetricRow {
     pub unit: String,
 }
 
-/// Quality score database table row
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct QualityScoreRow {
-    pub test_run_id: Uuid,
-    pub benchmark_name: String,
-    pub category: String,
-    pub score: f64,
-}

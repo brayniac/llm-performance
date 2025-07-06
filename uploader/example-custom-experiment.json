@@ -1,0 +1,90 @@
+{
+  "model_name": "Mixtral 8x7B",
+  "quantization": "Q4_K_M",
+  "backend": "vllm",
+  "backend_version": "v0.3.0",
+  "hardware_config": {
+    "gpu_model": "A100 80GB",
+    "gpu_memory_gb": 80,
+    "cpu_model": "AMD EPYC 7763",
+    "cpu_arch": "zen3",
+    "ram_gb": 256,
+    "ram_type": "DDR4",
+    "virtualization_type": null,
+    "optimizations": ["CUDA", "FlashAttention", "PagedAttention"]
+  },
+  "performance_metrics": [
+    {
+      "metric_name": "tokens_per_second",
+      "value": 156.8,
+      "unit": "tokens/sec",
+      "timestamp": "2025-01-06T15:00:00Z",
+      "context": {
+        "batch_size": 8,
+        "context_length": 4096
+      }
+    },
+    {
+      "metric_name": "prompt_processing_speed",
+      "value": 2450.5,
+      "unit": "tokens/sec",
+      "timestamp": "2025-01-06T15:00:00Z",
+      "context": {
+        "batch_size": 8,
+        "prompt_length": 2048
+      }
+    },
+    {
+      "metric_name": "memory_usage_gb",
+      "value": 45.2,
+      "unit": "GB",
+      "timestamp": "2025-01-06T15:00:00Z",
+      "context": null
+    },
+    {
+      "metric_name": "model_loading_time",
+      "value": 12.5,
+      "unit": "seconds",
+      "timestamp": "2025-01-06T15:00:00Z",
+      "context": null
+    }
+  ],
+  "benchmark_scores": [
+    {
+      "type": "MMLU",
+      "data": {
+        "categories": [
+          {
+            "category": "STEM",
+            "score": 71.2,
+            "total_questions": 500,
+            "correct_answers": 356
+          },
+          {
+            "category": "Humanities",
+            "score": 73.5,
+            "total_questions": 400,
+            "correct_answers": 294
+          }
+        ],
+        "timestamp": "2025-01-06T15:30:00Z",
+        "context": null
+      }
+    },
+    {
+      "type": "GSM8K",
+      "data": {
+        "problems_solved": 762,
+        "total_problems": 1319,
+        "timestamp": "2025-01-06T16:00:00Z",
+        "context": {
+          "temperature": 0.0,
+          "max_tokens": 512
+        }
+      }
+    }
+  ],
+  "timestamp": "2025-01-06T15:00:00Z",
+  "status": "completed",
+  "notes": "Production deployment test with vLLM backend"
+}

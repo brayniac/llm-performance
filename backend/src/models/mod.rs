@@ -4,16 +4,13 @@
 pub mod database;
 pub mod query_results;  
 pub mod conversions;
+pub mod benchmark_models;
+pub mod benchmark_conversions;
+pub mod benchmark_queries;
 
 // Re-export types from llm_benchmark_types that handlers need
-pub use llm_benchmark_types::{
-    PerformanceGridRow, ExperimentSummary, 
-    CategoryScore, SystemInfo, ExperimentStatus,
-    HardwareConfig, PerformanceMetric, QualityScore,
-};
 
 // Re-export all database row types
-pub use database::*;
 
 // Re-export all query result types  
 pub use query_results::*;

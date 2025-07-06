@@ -7,6 +7,7 @@
 //! and API request/response types.
 
 pub mod api;
+pub mod benchmarks;
 pub mod experiment;
 pub mod hardware;
 pub mod metrics;
@@ -14,6 +15,7 @@ pub mod validation;
 
 // Re-export commonly used types
 pub use api::*;
+pub use benchmarks::*;
 pub use experiment::*;
 pub use hardware::*;
 pub use metrics::*;

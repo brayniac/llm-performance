@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{HardwareConfig, PerformanceMetric, QualityScore};
+use crate::{HardwareConfig, PerformanceMetric, BenchmarkScoreType, BenchmarkScore};
 
 /// A complete experiment run containing all benchmark data
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -27,8 +27,8 @@ pub struct ExperimentRun {
     /// Performance metrics collected during the run
     pub performance_metrics: Vec<PerformanceMetric>,
 
-    /// Quality scores from various benchmarks
-    pub quality_scores: Vec<QualityScore>,
+    /// Benchmark scores from various tests
+    pub benchmark_scores: Vec<BenchmarkScoreType>,
 
     /// When the experiment was conducted
     pub timestamp: DateTime<Utc>,
@@ -85,7 +85,7 @@ impl ExperimentRun {
             backend_version,
             hardware_config,
             performance_metrics: Vec::new(),
-            quality_scores: Vec::new(),
+            benchmark_scores: Vec::new(),
             timestamp: Utc::now(),
             notes: None,
             status: ExperimentStatus::Pending,
@@ -97,9 +97,9 @@ impl ExperimentRun {
         self.performance_metrics.push(metric);
     }
 
-    /// Add a quality score to this experiment
-    pub fn add_quality_score(&mut self, score: QualityScore) {
-        self.quality_scores.push(score);
+    /// Add a benchmark score to this experiment
+    pub fn add_benchmark_score(&mut self, score: BenchmarkScoreType) {
+        self.benchmark_scores.push(score);
     }
 
     /// Get a specific performance metric by name
@@ -107,22 +107,22 @@ impl ExperimentRun {
         self.performance_metrics.iter().find(|m| m.metric_name == name)
     }
 
-    /// Get all quality scores for a specific benchmark
-    pub fn get_quality_scores_for_benchmark(&self, benchmark_name: &str) -> Vec<&QualityScore> {
-        self.quality_scores
+    /// Get all benchmark scores for a specific benchmark
+    pub fn get_benchmark_scores_for_benchmark(&self, benchmark_name: &str) -> Vec<&BenchmarkScoreType> {
+        self.benchmark_scores
             .iter()
-            .filter(|s| s.benchmark_name == benchmark_name)
+            .filter(|s| s.benchmark_name() == benchmark_name)
             .collect()
     }
 
-    /// Calculate overall score across all quality scores
+    /// Calculate overall score across all benchmark scores
     pub fn calculate_overall_score(&self) -> Option<f64> {
-        if self.quality_scores.is_empty() {
+        if self.benchmark_scores.is_empty() {
             return None;
         }
 
-        let sum: f64 = self.quality_scores.iter().map(|s| s.score).sum();
-        Some(sum / self.quality_scores.len() as f64)
+        let sum: f64 = self.benchmark_scores.iter().map(|s| s.overall_score()).sum();
+        Some(sum / self.benchmark_scores.len() as f64)
     }
 
     /// Mark the experiment as completed
