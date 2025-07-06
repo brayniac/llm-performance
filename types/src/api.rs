@@ -48,6 +48,28 @@ pub struct PerformanceGridRequest {
     pub models: Option<Vec<String>>,
 }
 
+/// Request for grouped model performance data
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct GroupedPerformanceRequest {
+    /// Benchmark to use for quality scoring (e.g., "mmlu", "gsm8k")
+    pub benchmark: Option<String>,
+    
+    /// Minimum quality score filter (0-100)
+    pub min_quality: Option<f64>,
+    
+    /// Maximum memory usage filter (in GB)
+    pub max_memory_gb: Option<f64>,
+
+    /// Minimum speed filter (in tok/s)
+    pub min_speed: Option<f64>,
+
+    /// Sort field ("quality", "speed", "memory", "model_name")
+    pub sort_by: Option<String>,
+    
+    /// Sort direction ("asc" or "desc")
+    pub sort_direction: Option<String>,
+}
+
 /// Row in the performance grid
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PerformanceGridRow {
@@ -80,6 +102,63 @@ pub struct PerformanceGridRow {
 
     /// Overall quality score (if available)
     pub overall_score: Option<f64>,
+}
+
+/// Response for grouped model performance
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GroupedPerformanceResponse {
+    /// List of models with their best qualifying quantization
+    pub models: Vec<ModelPerformanceGroup>,
+    
+    /// Total number of models (before pagination)
+    pub total_count: usize,
+    
+    /// Benchmark used for quality scoring
+    pub benchmark_used: String,
+}
+
+/// A model with its best quantization that meets filters
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ModelPerformanceGroup {
+    /// Model name/slug
+    pub model_name: String,
+    
+    /// Best quantization that meets all filters
+    pub best_quantization: QuantizationPerformance,
+    
+    /// Total number of quantizations tested
+    pub total_quantizations: usize,
+    
+    /// Number of quantizations that meet current filters
+    pub qualifying_quantizations: usize,
+    
+    /// All qualifying quantizations (for expansion)
+    pub all_quantizations: Option<Vec<QuantizationPerformance>>,
+}
+
+/// Performance data for a specific quantization
+#[derive(Debug, Serialize, Deserialize)]
+pub struct QuantizationPerformance {
+    /// Test run ID
+    pub id: Uuid,
+    
+    /// Quantization scheme
+    pub quantization: String,
+    
+    /// Quality score for the selected benchmark
+    pub quality_score: f64,
+    
+    /// Generation speed in tokens per second
+    pub tokens_per_second: f64,
+    
+    /// Memory usage in GB
+    pub memory_gb: f64,
+    
+    /// Backend used
+    pub backend: String,
+    
+    /// Hardware summary
+    pub hardware: String,
 }
 
 /// Request for comparison between two configurations

@@ -374,7 +374,7 @@ fn is_valid_cpu_arch(cpu_arch: &str) -> bool {
         cpu_arch.to_lowercase().as_str(),
         "x86_64" | "x64" | "amd64" | "arm64" | "aarch64" | "armv7" | "armv8" |
         "zen2" | "zen3" | "zen4" | "haswell" | "skylake" | "icelake" | "alderlake" |
-        "apple_m1" | "apple_m2" | "apple_m3"
+        "apple_m1" | "apple_m2" | "apple_m3" | "generic" | "unknown"
     )
 }
 

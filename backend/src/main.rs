@@ -13,7 +13,7 @@ use llm_benchmark_types::HealthResponse;
 mod models;
 mod handlers;
 
-use handlers::{get_performance_grid, get_comparison, get_configurations, get_detail, upload_experiment};
+use handlers::{get_performance_grid, get_comparison, get_configurations, get_detail, upload_experiment, get_grouped_performance};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -42,10 +42,11 @@ async fn main() -> anyhow::Result<()> {
     // Build our application with routes
     let app = Router::new()
         .route("/api/performance-grid", get(get_performance_grid))
+        .route("/api/grouped-performance", get(get_grouped_performance))
         .route("/api/comparison", get(get_comparison))
         .route("/api/configurations", get(get_configurations))
         .route("/api/detail/:test_run_id", get(get_detail))
-        .route("/api/upload-experiment", post(upload_experiment)) // New endpoint
+        .route("/api/upload-experiment", post(upload_experiment))
         .route("/health", get(health_check))
         // Serve static files (your built frontend)
         .nest_service("/", ServeDir::new("../frontend/build"))
