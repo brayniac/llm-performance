@@ -81,20 +81,24 @@
 
 {#if expanded && model.all_quantizations}
   <div class="expanded-content">
-    <div class="quant-header">
+    <div class="quant-header" class:no-benchmark={benchmark === 'none'}>
       <div>Quantization</div>
-      <div>{benchmark.toUpperCase()} Score</div>
+      {#if benchmark !== 'none'}
+        <div>{benchmark.toUpperCase()} Score</div>
+      {/if}
       <div>Speed</div>
       <div>Memory</div>
       <div>Actions</div>
     </div>
     
     {#each model.all_quantizations as quant}
-      <div class="quant-row">
+      <div class="quant-row" class:no-benchmark={benchmark === 'none'}>
         <div>{quant.quantization}</div>
-        <div style="color: {getScoreColor(quant.quality_score)}">
-          {quant.quality_score.toFixed(1)}%
-        </div>
+        {#if benchmark !== 'none'}
+          <div style="color: {getScoreColor(quant.quality_score)}">
+            {quant.quality_score.toFixed(1)}%
+          </div>
+        {/if}
         <div>{quant.tokens_per_second.toFixed(1)} tok/s</div>
         <div>{quant.memory_gb.toFixed(1)} GB</div>
         <div>
@@ -216,12 +220,20 @@
     margin-bottom: 0.5rem;
   }
   
+  .quant-header.no-benchmark {
+    grid-template-columns: 1.5fr 1fr 0.8fr 1fr;
+  }
+  
   .quant-row {
     display: grid;
     grid-template-columns: 1.5fr 1fr 1fr 0.8fr 1fr;
     gap: 1rem;
     padding: 0.5rem 0;
     font-size: 0.9rem;
+  }
+  
+  .quant-row.no-benchmark {
+    grid-template-columns: 1.5fr 1fr 0.8fr 1fr;
   }
   
   .quant-row:hover {

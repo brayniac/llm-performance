@@ -137,7 +137,7 @@ pub struct ModelPerformanceGroup {
 }
 
 /// Performance data for a specific quantization
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuantizationPerformance {
     /// Test run ID
     pub id: Uuid,

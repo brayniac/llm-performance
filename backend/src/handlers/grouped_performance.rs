@@ -147,14 +147,15 @@ pub async fn get_grouped_performance(
             quants.sort_by(|a, b| b.quality_score.partial_cmp(&a.quality_score).unwrap());
             
             let qualifying_count = quants.len();
-            let best_quant = quants.into_iter().next().unwrap();
+            let best_quant = quants[0].clone();
+            let all_quants = Some(quants);
             
             Some(ModelPerformanceGroup {
                 model_name: model_name.clone(),
                 best_quantization: best_quant,
                 total_quantizations: *total_quants_by_model.get(&model_name).unwrap_or(&qualifying_count),
                 qualifying_quantizations: qualifying_count,
-                all_quantizations: None, // Client can request this separately if needed
+                all_quantizations: all_quants,
             })
         })
         .collect();
