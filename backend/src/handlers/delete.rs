@@ -323,3 +323,115 @@ async fn delete_test_run_internal(db: &sqlx::PgPool, test_run_id: Uuid) -> Resul
 
     Ok(())
 }
+
+/// Delete specific benchmark scores from a test run
+pub async fn delete_benchmark_scores(
+    Path(test_run_id): Path<Uuid>,
+    State(state): State<AppState>,
+    Json(request): Json<DeleteBenchmarkRequest>,
+) -> Result<Json<DeleteResponse>, (StatusCode, Json<DeleteResponse>)> {
+    // Start a transaction
+    let mut tx = state.db.begin().await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(DeleteResponse {
+                success: false,
+                message: format!("Failed to start transaction: {}", e),
+                deleted_id: None,
+            }),
+        )
+    })?;
+
+    // Check if the test run exists
+    let exists = sqlx::query!(
+        "SELECT id FROM test_runs WHERE id = $1",
+        test_run_id
+    )
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(DeleteResponse {
+                success: false,
+                message: format!("Database error: {}", e),
+                deleted_id: None,
+            }),
+        )
+    })?;
+
+    if exists.is_none() {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(DeleteResponse {
+                success: false,
+                message: format!("Test run {} not found", test_run_id),
+                deleted_id: None,
+            }),
+        ));
+    }
+
+    // Delete the specific benchmark scores
+    let table_name = match request.benchmark_type.to_lowercase().as_str() {
+        "mmlu" => "mmlu_scores",
+        "gsm8k" => "gsm8k_scores",
+        "humaneval" => "humaneval_scores",
+        "hellaswag" => "hellaswag_scores",
+        "truthfulqa" => "truthfulqa_scores",
+        "generic" => "generic_benchmark_scores",
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(DeleteResponse {
+                    success: false,
+                    message: format!("Invalid benchmark type: {}", request.benchmark_type),
+                    deleted_id: None,
+                }),
+            ));
+        }
+    };
+
+    // Execute the delete query
+    let query = format!("DELETE FROM {} WHERE test_run_id = $1", table_name);
+    let rows_affected = sqlx::query(&query)
+        .bind(test_run_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(DeleteResponse {
+                    success: false,
+                    message: format!("Failed to delete {} scores: {}", request.benchmark_type, e),
+                    deleted_id: None,
+                }),
+            )
+        })?
+        .rows_affected();
+
+    // Commit the transaction
+    tx.commit().await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(DeleteResponse {
+                success: false,
+                message: format!("Failed to commit transaction: {}", e),
+                deleted_id: None,
+            }),
+        )
+    })?;
+
+    Ok(Json(DeleteResponse {
+        success: true,
+        message: format!(
+            "Successfully deleted {} {} scores from test run {}",
+            rows_affected, request.benchmark_type, test_run_id
+        ),
+        deleted_id: Some(test_run_id),
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeleteBenchmarkRequest {
+    pub benchmark_type: String,
+}

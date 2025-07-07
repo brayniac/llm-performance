@@ -29,4 +29,17 @@ if [ ! -z "$MODEL_NAME" ] && [ ! -z "$QUANTIZATION" ]; then
         -d "{\"model_name\": \"$MODEL_NAME\", \"quantization\": \"$QUANTIZATION\"}" | jq '.'
 fi
 
+echo -e "\n6. Testing delete specific benchmark scores..."
+echo "Enter test_run_id to delete benchmark scores from:"
+read TEST_RUN_ID_BENCH
+echo "Enter benchmark type (mmlu, gsm8k, humaneval, hellaswag, truthfulqa):"
+read BENCHMARK_TYPE
+
+if [ ! -z "$TEST_RUN_ID_BENCH" ] && [ ! -z "$BENCHMARK_TYPE" ]; then
+    echo -e "\n7. Deleting $BENCHMARK_TYPE scores from test run $TEST_RUN_ID_BENCH..."
+    curl -X POST http://localhost:3000/api/delete-benchmark/$TEST_RUN_ID_BENCH \
+        -H "Content-Type: application/json" \
+        -d "{\"benchmark_type\": \"$BENCHMARK_TYPE\"}" | jq '.'
+fi
+
 echo -e "\nDone!"
