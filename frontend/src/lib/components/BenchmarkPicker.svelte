@@ -6,6 +6,7 @@
   const dispatch = createEventDispatcher();
   
   const benchmarks = [
+    { value: 'none', label: 'No Benchmark', description: 'Sort by performance metrics only' },
     { value: 'mmlu', label: 'MMLU Pro', description: 'Massive Multitask Language Understanding' },
     { value: 'gsm8k', label: 'GSM8K', description: 'Grade School Math' },
     { value: 'humaneval', label: 'HumanEval', description: 'Code Generation' },

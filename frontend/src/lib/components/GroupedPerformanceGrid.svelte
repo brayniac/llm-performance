@@ -11,11 +11,11 @@
   let expandedModels = new Set();
   
   // Filter and sort values
-  let selectedBenchmark = 'mmlu';
+  let selectedBenchmark = 'none'; // Default to no benchmark since we don't have scores yet
   let minQuality = 0;
   let maxMemory = 100;
   let minSpeed = 0;
-  let sortBy = 'quality';
+  let sortBy = 'speed'; // Default to speed sorting when no benchmark
   let sortDirection = 'desc';
   
   async function loadData() {
@@ -99,19 +99,21 @@
     />
     
     <div class="filters">
-      <div class="filter-group">
-        <label>
-          Quality ≥ 
-          <input 
-            type="number" 
-            bind:value={minQuality} 
-            on:change={handleFiltersChanged}
-            min="0" 
-            max="100" 
-            step="5"
-          />%
-        </label>
-      </div>
+      {#if selectedBenchmark !== 'none'}
+        <div class="filter-group">
+          <label>
+            Quality ≥ 
+            <input 
+              type="number" 
+              bind:value={minQuality} 
+              on:change={handleFiltersChanged}
+              min="0" 
+              max="100" 
+              step="5"
+            />%
+          </label>
+        </div>
+      {/if}
       
       <div class="filter-group">
         <label>
@@ -149,7 +151,7 @@
     <div class="no-results">No models match the current filters</div>
   {:else}
     <div class="grid-container">
-      <div class="grid-header">
+      <div class="grid-header" class:no-benchmark={selectedBenchmark === 'none'}>
         <div 
           class="sortable" 
           on:click={() => handleSortChange('model_name')}
@@ -157,12 +159,14 @@
           Model {getSortIndicator('model_name')}
         </div>
         <div>Best Quantization</div>
-        <div 
-          class="sortable" 
-          on:click={() => handleSortChange('quality')}
-        >
-          {selectedBenchmark.toUpperCase()} Score {getSortIndicator('quality')}
-        </div>
+        {#if selectedBenchmark !== 'none'}
+          <div 
+            class="sortable" 
+            on:click={() => handleSortChange('quality')}
+          >
+            {selectedBenchmark.toUpperCase()} Score {getSortIndicator('quality')}
+          </div>
+        {/if}
         <div 
           class="sortable" 
           on:click={() => handleSortChange('speed')}
@@ -248,6 +252,10 @@
     background-color: #6c757d;
     color: white;
     font-weight: bold;
+  }
+  
+  .grid-header.no-benchmark {
+    grid-template-columns: 2.5fr 1.5fr 1fr 0.8fr 1fr;
   }
   
   .sortable {

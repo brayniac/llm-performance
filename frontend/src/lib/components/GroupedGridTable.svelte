@@ -33,7 +33,7 @@
   }
 </script>
 
-<div class="model-row" class:expanded>
+<div class="model-row" class:expanded style="grid-template-columns: {benchmark === 'none' ? '2.5fr 1.5fr 1fr 0.8fr 1fr' : '2.5fr 1.5fr 1fr 1fr 0.8fr 1fr'}">
   <div class="model-info">
     <button 
       class="expand-btn" 
@@ -55,9 +55,11 @@
     {model.best_quantization.quantization}
   </div>
   
-  <div class="score" style="color: {getScoreColor(model.best_quantization.quality_score)}">
-    {model.best_quantization.quality_score.toFixed(1)}%
-  </div>
+  {#if benchmark !== 'none'}
+    <div class="score" style="color: {getScoreColor(model.best_quantization.quality_score)}">
+      {model.best_quantization.quality_score.toFixed(1)}%
+    </div>
+  {/if}
   
   <div class="speed">
     {model.best_quantization.tokens_per_second.toFixed(1)} tok/s

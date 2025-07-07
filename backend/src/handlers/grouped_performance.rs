@@ -53,6 +53,7 @@ pub async fn get_grouped_performance(
                     WHEN $1 = 'truthfulqa' THEN (
                         SELECT truthful_score FROM truthfulqa_scores WHERE test_run_id = tr.id LIMIT 1
                     )
+                    WHEN $1 = 'none' THEN NULL
                     ELSE NULL
                 END as quality_score
             FROM test_runs tr
@@ -64,8 +65,7 @@ pub async fn get_grouped_performance(
             WHERE tr.status = 'completed'
         )
         SELECT * FROM test_run_data
-        WHERE quality_score IS NOT NULL
-        ORDER BY model_name, quality_score DESC
+        ORDER BY model_name, quality_score DESC NULLS LAST
     "#;
 
     let rows = sqlx::query(query)
@@ -87,7 +87,7 @@ pub async fn get_grouped_performance(
         let model_name: String = row.get("model_name");
         let tokens_per_second: f64 = row.get("tokens_per_second");
         let memory_gb: f64 = row.get("memory_gb");
-        let quality_score: f64 = row.get("quality_score");
+        let quality_score: Option<f64> = row.get("quality_score");
         
         // Count total quantizations for this model
         *total_quants_by_model.entry(model_name.clone()).or_insert(0) += 1;
@@ -106,7 +106,12 @@ pub async fn get_grouped_performance(
         }
         
         if let Some(min_quality) = params.min_quality {
-            if quality_score < min_quality {
+            if let Some(score) = quality_score {
+                if score < min_quality {
+                    continue;
+                }
+            } else {
+                // No quality score, skip if min_quality filter is set
                 continue;
             }
         }
@@ -114,7 +119,7 @@ pub async fn get_grouped_performance(
         let quant_perf = QuantizationPerformance {
             id: row.get("id"),
             quantization: row.get("quantization"),
-            quality_score,
+            quality_score: quality_score.unwrap_or(0.0), // Default to 0 if no score
             tokens_per_second,
             memory_gb,
             backend: row.get("backend"),
