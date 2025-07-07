@@ -85,8 +85,8 @@ pub async fn get_grouped_performance(
     
     for row in rows {
         let model_name: String = row.get("model_name");
-        let tokens_per_second: f64 = row.get("tokens_per_second");
-        let memory_gb: f64 = row.get("memory_gb");
+        let tokens_per_second: Option<f64> = row.get("tokens_per_second");
+        let memory_gb: Option<f64> = row.get("memory_gb");
         let quality_score: Option<f64> = row.get("quality_score");
         
         // Count total quantizations for this model
@@ -94,14 +94,18 @@ pub async fn get_grouped_performance(
         
         // Apply filters
         if let Some(min_speed) = params.min_speed {
-            if tokens_per_second < min_speed {
-                continue;
+            match tokens_per_second {
+                Some(speed) if speed < min_speed => continue,
+                None => continue, // Skip if no speed data when filter is set
+                _ => {}
             }
         }
         
         if let Some(max_memory) = params.max_memory_gb {
-            if memory_gb > max_memory {
-                continue;
+            match memory_gb {
+                Some(memory) if memory > max_memory => continue,
+                None => {} // Don't filter out if no memory data
+                _ => {}
             }
         }
         
@@ -120,8 +124,8 @@ pub async fn get_grouped_performance(
             id: row.get("id"),
             quantization: row.get("quantization"),
             quality_score: quality_score.unwrap_or(0.0), // Default to 0 if no score
-            tokens_per_second,
-            memory_gb,
+            tokens_per_second: tokens_per_second.unwrap_or(0.0), // Default to 0 if no perf data
+            memory_gb: memory_gb.unwrap_or(0.0), // Default to 0 if no memory data
             backend: row.get("backend"),
             hardware: row.get("hardware"),
         };
