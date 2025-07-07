@@ -7,6 +7,7 @@ pub mod configuration;
 pub mod experiment;
 pub mod grouped_performance;
 pub mod delete;
+pub mod list_test_runs;
 
 // Re-export public handler functions for use in main.rs
 pub use performance::get_performance_grid;
@@ -15,3 +16,4 @@ pub use configuration::{get_configurations, get_detail};
 pub use experiment::upload_experiment;
 pub use grouped_performance::get_grouped_performance;
 pub use delete::{delete_test_run, delete_by_model_quant, delete_benchmark_scores};
+pub use list_test_runs::list_test_runs;
