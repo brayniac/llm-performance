@@ -81,12 +81,16 @@ pub async fn get_grouped_performance(
 
     // Group by model and apply filters
     let mut model_groups: HashMap<String, Vec<QuantizationPerformance>> = HashMap::new();
+    let mut total_quants_by_model: HashMap<String, usize> = HashMap::new();
     
     for row in rows {
         let model_name: String = row.get("model_name");
         let tokens_per_second: f64 = row.get("tokens_per_second");
         let memory_gb: f64 = row.get("memory_gb");
         let quality_score: f64 = row.get("quality_score");
+        
+        // Count total quantizations for this model
+        *total_quants_by_model.entry(model_name.clone()).or_insert(0) += 1;
         
         // Apply filters
         if let Some(min_speed) = params.min_speed {
@@ -137,11 +141,11 @@ pub async fn get_grouped_performance(
             let best_quant = quants.into_iter().next().unwrap();
             
             Some(ModelPerformanceGroup {
-                model_name,
+                model_name: model_name.clone(),
                 best_quantization: best_quant,
-                total_quantizations: qualifying_count, // TODO: Get actual total count
+                total_quantizations: *total_quants_by_model.get(&model_name).unwrap_or(&qualifying_count),
                 qualifying_quantizations: qualifying_count,
-                all_quantizations: None,
+                all_quantizations: None, // Client can request this separately if needed
             })
         })
         .collect();

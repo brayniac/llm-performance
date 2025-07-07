@@ -1,5 +1,5 @@
 <script>
-  import PerformanceGrid from '$lib/components/PerformanceGrid.svelte';
+  import GroupedPerformanceGrid from '$lib/components/GroupedPerformanceGrid.svelte';
 </script>
 
 <svelte:head>
@@ -13,7 +13,7 @@
     <p>Compare models across different quantization schemes, backends, and hardware configurations</p>
   </div>
   
-  <PerformanceGrid />
+  <GroupedPerformanceGrid />
 </div>
 
 <style>
