@@ -56,17 +56,17 @@
   </div>
   
   {#if benchmark !== 'none'}
-    <div class="score" style="color: {getScoreColor(model.best_quantization.quality_score)}">
-      {model.best_quantization.quality_score.toFixed(1)}%
+    <div class="score" style="color: {model.best_quantization.quality_score === 0 ? '#6c757d' : getScoreColor(model.best_quantization.quality_score)}">
+      {model.best_quantization.quality_score === 0 ? 'Unknown' : model.best_quantization.quality_score.toFixed(1) + '%'}
     </div>
   {/if}
   
-  <div class="speed">
-    {model.best_quantization.tokens_per_second.toFixed(1)} tok/s
+  <div class="speed" class:unknown={model.best_quantization.tokens_per_second === 0}>
+    {model.best_quantization.tokens_per_second === 0 ? 'Unknown' : model.best_quantization.tokens_per_second.toFixed(1) + ' tok/s'}
   </div>
   
-  <div class="memory">
-    {model.best_quantization.memory_gb.toFixed(1)} GB
+  <div class="memory" class:unknown={model.best_quantization.memory_gb === 0}>
+    {model.best_quantization.memory_gb === 0 ? 'Unknown' : model.best_quantization.memory_gb.toFixed(1) + ' GB'}
   </div>
   
   <div class="actions">
@@ -95,12 +95,12 @@
       <div class="quant-row" class:no-benchmark={benchmark === 'none'}>
         <div>{quant.quantization}</div>
         {#if benchmark !== 'none'}
-          <div style="color: {getScoreColor(quant.quality_score)}">
-            {quant.quality_score.toFixed(1)}%
+          <div style="color: {quant.quality_score === 0 ? '#6c757d' : getScoreColor(quant.quality_score)}">
+            {quant.quality_score === 0 ? 'Unknown' : quant.quality_score.toFixed(1) + '%'}
           </div>
         {/if}
-        <div>{quant.tokens_per_second.toFixed(1)} tok/s</div>
-        <div>{quant.memory_gb.toFixed(1)} GB</div>
+        <div class:unknown={quant.tokens_per_second === 0}>{quant.tokens_per_second === 0 ? 'Unknown' : quant.tokens_per_second.toFixed(1) + ' tok/s'}</div>
+        <div class:unknown={quant.memory_gb === 0}>{quant.memory_gb === 0 ? 'Unknown' : quant.memory_gb.toFixed(1) + ' GB'}</div>
         <div>
           <button 
             class="detail-btn small" 
@@ -238,5 +238,10 @@
   
   .quant-row:hover {
     background-color: white;
+  }
+  
+  .unknown {
+    color: #6c757d;
+    font-style: italic;
   }
 </style>
