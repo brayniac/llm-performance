@@ -133,11 +133,11 @@ pub async fn get_grouped_performance(
         let gpu_model: String = row.get("gpu_model");
         let cpu_arch: String = row.get("cpu_arch");
         
+        // Count total quantizations for this model (before filtering)
+        *total_quants_by_model.entry(model_name.clone()).or_insert(0) += 1;
+        
         // Determine hardware category
         let hardware_category = determine_hardware_category(&gpu_model, &cpu_arch);
-        
-        // Count total quantizations for this model
-        *total_quants_by_model.entry(model_name.clone()).or_insert(0) += 1;
         
         // Apply hardware category filter
         if let Some(ref categories) = params.hardware_categories {
