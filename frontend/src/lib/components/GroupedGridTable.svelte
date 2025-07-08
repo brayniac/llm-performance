@@ -48,7 +48,7 @@
   }
 </script>
 
-<div class="model-row" class:expanded style="grid-template-columns: {benchmark === 'none' ? '2.5fr 1.5fr 1.5fr 0.8fr 1fr' : '2.5fr 1.5fr 1fr 1.5fr 0.8fr 1fr'}">
+<div class="model-row" class:expanded style="grid-template-columns: {benchmark === 'none' ? '2.5fr 1.5fr 1fr 1fr 0.8fr 1fr' : '2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr'}">
   <div class="model-info">
     <button 
       class="expand-btn" 
@@ -77,10 +77,11 @@
   {/if}
   
   <div class="speed" class:unknown={model.best_quantization.tokens_per_second === 0}>
-    <span>{model.best_quantization.tokens_per_second === 0 ? 'Unknown' : model.best_quantization.tokens_per_second.toFixed(1) + ' tok/s'}</span>
-    <span class="hardware-info" title="{model.best_quantization.hardware}">
-      ({extractGpuModel(model.best_quantization.hardware)})
-    </span>
+    {model.best_quantization.tokens_per_second === 0 ? 'Unknown' : model.best_quantization.tokens_per_second.toFixed(1) + ' tok/s'}
+  </div>
+  
+  <div class="platform" title="{model.best_quantization.hardware}">
+    {extractGpuModel(model.best_quantization.hardware)}
   </div>
   
   <div class="memory" class:unknown={model.best_quantization.memory_gb === 0}>
@@ -102,9 +103,10 @@
     <div class="quant-header" class:no-benchmark={benchmark === 'none'}>
       <div>Quantization</div>
       {#if benchmark !== 'none'}
-        <div>{benchmark.toUpperCase()} Score</div>
+        <div>MMLU Score</div>
       {/if}
       <div>Speed</div>
+      <div>Platform</div>
       <div>Memory</div>
       <div>Actions</div>
     </div>
@@ -117,11 +119,11 @@
             {quant.quality_score === 0 ? 'Unknown' : quant.quality_score.toFixed(1) + '%'}
           </div>
         {/if}
-        <div class="speed-cell" class:unknown={quant.tokens_per_second === 0}>
-          <span>{quant.tokens_per_second === 0 ? 'Unknown' : quant.tokens_per_second.toFixed(1) + ' tok/s'}</span>
-          <span class="hardware-info small" title="{quant.hardware}">
-            ({extractGpuModel(quant.hardware)})
-          </span>
+        <div class:unknown={quant.tokens_per_second === 0}>
+          {quant.tokens_per_second === 0 ? 'Unknown' : quant.tokens_per_second.toFixed(1) + ' tok/s'}
+        </div>
+        <div class="platform small" title="{quant.hardware}">
+          {extractGpuModel(quant.hardware)}
         </div>
         <div class:unknown={quant.memory_gb === 0}>{quant.memory_gb === 0 ? 'Unknown' : quant.memory_gb.toFixed(1) + ' GB'}</div>
         <div>
@@ -140,7 +142,7 @@
 <style>
   .model-row {
     display: grid;
-    grid-template-columns: 2.5fr 1.5fr 1fr 1.5fr 0.8fr 1fr;
+    grid-template-columns: 2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
     gap: 1rem;
     padding: 1rem;
     border-bottom: 1px solid #e1e5e9;
@@ -233,7 +235,7 @@
   
   .quant-header {
     display: grid;
-    grid-template-columns: 1.5fr 1fr 1.5fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
     gap: 1rem;
     padding: 0.5rem 0;
     font-weight: 600;
@@ -244,19 +246,19 @@
   }
   
   .quant-header.no-benchmark {
-    grid-template-columns: 1.5fr 1.5fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1fr 0.8fr 1fr;
   }
   
   .quant-row {
     display: grid;
-    grid-template-columns: 1.5fr 1fr 1.5fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
     gap: 1rem;
     padding: 0.5rem 0;
     font-size: 0.9rem;
   }
   
   .quant-row.no-benchmark {
-    grid-template-columns: 1.5fr 1.5fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1fr 0.8fr 1fr;
   }
   
   .quant-row:hover {
@@ -268,20 +270,15 @@
     font-style: italic;
   }
   
-  .hardware-info {
-    color: #6c757d;
-    font-size: 0.85rem;
-    font-weight: normal;
+  .platform {
+    color: #495057;
+    font-weight: 500;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
-  .hardware-info.small {
-    font-size: 0.8rem;
-  }
-  
-  .speed, .speed-cell {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  .platform.small {
+    font-size: 0.9rem;
   }
 </style>

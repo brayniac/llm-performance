@@ -193,6 +193,7 @@
         >
           Speed {getSortIndicator('speed')}
         </div>
+        <div>Platform</div>
         <div 
           class="sortable" 
           on:click={() => handleSortChange('memory')}
@@ -266,7 +267,7 @@
   
   .grid-header {
     display: grid;
-    grid-template-columns: 2.5fr 1.5fr 1fr 1.5fr 0.8fr 1fr;
+    grid-template-columns: 2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
     gap: 1rem;
     padding: 1rem;
     background-color: #6c757d;
@@ -275,7 +276,7 @@
   }
   
   .grid-header.no-benchmark {
-    grid-template-columns: 2.5fr 1.5fr 1.5fr 0.8fr 1fr;
+    grid-template-columns: 2.5fr 1.5fr 1fr 1fr 0.8fr 1fr;
   }
   
   .sortable {
