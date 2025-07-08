@@ -70,8 +70,8 @@ pub struct GroupedPerformanceRequest {
     /// Sort direction ("asc" or "desc")
     pub sort_direction: Option<String>,
     
-    /// Hardware categories to include (if empty, all are included)
-    pub hardware_categories: Option<Vec<HardwareCategory>>,
+    /// Hardware categories to include (comma-separated string)
+    pub hardware_categories: Option<String>,
 }
 
 /// Row in the performance grid

@@ -47,6 +47,22 @@ pub async fn get_grouped_performance(
     // Default to MMLU if no benchmark specified
     let benchmark = params.benchmark.as_deref().unwrap_or("mmlu");
     
+    // Parse hardware categories from comma-separated string
+    let filter_categories: Vec<HardwareCategory> = if let Some(ref categories_str) = params.hardware_categories {
+        categories_str
+            .split(',')
+            .filter_map(|s| match s.trim() {
+                "consumer_gpu" => Some(HardwareCategory::ConsumerGpu),
+                "consumer_cpu" => Some(HardwareCategory::ConsumerCpu),
+                "datacenter_gpu" => Some(HardwareCategory::DatacenterGpu),
+                "datacenter_cpu" => Some(HardwareCategory::DatacenterCpu),
+                _ => None,
+            })
+            .collect()
+    } else {
+        Vec::new()
+    };
+    
     // Get all test runs with their performance metrics and quality scores
     let query = r#"
         WITH test_run_data AS (
@@ -140,10 +156,8 @@ pub async fn get_grouped_performance(
         let hardware_category = determine_hardware_category(&gpu_model, &cpu_arch);
         
         // Apply hardware category filter
-        if let Some(ref categories) = params.hardware_categories {
-            if !categories.is_empty() && !categories.contains(&hardware_category) {
-                continue;
-            }
+        if !filter_categories.is_empty() && !filter_categories.contains(&hardware_category) {
+            continue;
         }
         
         // Apply filters

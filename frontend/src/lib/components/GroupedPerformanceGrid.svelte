@@ -31,11 +31,9 @@
       sort_direction: sortDirection
     });
     
-    // Add hardware categories if any are selected
+    // Add hardware categories as comma-separated string
     if (selectedHardwareCategories.length > 0) {
-      selectedHardwareCategories.forEach(category => {
-        params.append('hardware_categories', category);
-      });
+      params.set('hardware_categories', selectedHardwareCategories.join(','));
     }
     
     try {
