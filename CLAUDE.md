@@ -65,9 +65,19 @@ Migrations are located in `/backend/migrations` and should be run with `sqlx mig
 ## Key Data Flow
 
 1. **Experiment Data**: Uploaded via `/api/upload-experiment` endpoint
-2. **Performance Grid**: Aggregated view from `/api/performance-grid` showing model comparisons
-3. **Detailed Views**: Individual configuration results via `/api/detail/:test_run_id`
-4. **Comparisons**: Side-by-side analysis via `/api/comparison` with configA/configB parameters
+2. **Benchmark Scores**: Uploaded via `/api/upload-benchmarks` endpoint (model/quantization specific)
+3. **Performance Grid**: Aggregated view from `/api/grouped-performance` showing model comparisons
+4. **Detailed Views**: Individual configuration results via `/api/detail/:test_run_id`
+5. **Comparisons**: Side-by-side analysis via `/api/comparison` with configA/configB parameters
+
+## Data Architecture
+
+The system separates model-specific quality benchmarks from hardware-specific performance metrics:
+
+- **Model Variants**: Unique combinations of model_name + quantization
+- **Benchmark Scores** (MMLU, GSM8K, etc.): Attached to model variants, shared across all hardware
+- **Performance Metrics** (tokens/s, memory): Attached to specific test runs with hardware profiles
+- This allows uploading MMLU-Pro scores separately without losing performance data
 
 ## Development Workflow
 
