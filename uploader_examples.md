@@ -1,7 +1,7 @@
 # LLM Benchmark Uploader Examples
 
 ## Consistent argument usage
-All commands now use `-m/--model` and `-q/--quant` consistently.
+All commands now use `-m/--model` and `-q/--quantization` consistently.
 
 ## Upload llama-bench results
 ```bash

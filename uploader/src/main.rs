@@ -31,8 +31,8 @@ enum Commands {
         model: Option<String>,
         
         /// Quantization format (will be extracted from filename if not provided)
-        #[arg(short = 'q', long = "quant")]
-        quant: Option<String>,
+        #[arg(short = 'q', long = "quantization")]
+        quantization: Option<String>,
         
         /// Optional notes about this run
         #[arg(short, long)]
@@ -69,8 +69,8 @@ enum Commands {
         model: String,
         
         /// Quantization format (e.g., "Q3_K_L")
-        #[arg(short = 'q', long = "quant")]
-        quant: String,
+        #[arg(short = 'q', long = "quantization")]
+        quantization: String,
         
         /// API server URL (default: http://localhost:3000)
         #[arg(short, long, default_value = "http://localhost:3000")]
@@ -152,17 +152,17 @@ async fn main() -> Result<()> {
             file, 
             server, 
             model, 
-            quant, 
+            quantization, 
             notes,
             benchmarks,
         } => {
-            upload_llama_bench(file, server, model, quant, notes, benchmarks).await?;
+            upload_llama_bench(file, server, model, quantization, notes, benchmarks).await?;
         }
         Commands::Benchmarks { test_run_id, file, server } => {
             upload_benchmarks_only(test_run_id, file, server).await?;
         }
-        Commands::MmluPro { file, model, quant, server, backend, notes } => {
-            upload_mmlu_pro(file, model, quant, server, backend, notes).await?;
+        Commands::MmluPro { file, model, quantization, server, backend, notes } => {
+            upload_mmlu_pro(file, model, quantization, server, backend, notes).await?;
         }
         Commands::Custom { file, server } => {
             upload_custom(file, server).await?;
@@ -176,7 +176,7 @@ async fn upload_llama_bench(
     file: PathBuf,
     server: String,
     model_name: Option<String>,
-    quant: Option<String>,
+    quantization: Option<String>,
     notes: Option<String>,
     benchmarks_file: Option<PathBuf>,
 ) -> Result<()> {
@@ -196,7 +196,7 @@ async fn upload_llama_bench(
     
     // Use provided values or fall back to parsed values
     let model_name = model_name.unwrap_or(model_info.name);
-    let quantization = quant.unwrap_or(model_info.quantization);
+    let quantization = quantization.unwrap_or(model_info.quantization);
     
     // Parse hardware info
     let hardware_config = parse_hardware_info(first_result)?;
@@ -485,7 +485,7 @@ async fn upload_benchmarks_only(test_run_id: String, file: PathBuf, _server: Str
 async fn upload_mmlu_pro(
     file: PathBuf,
     model: String,
-    quant: String,
+    quantization: String,
     server: String,
     backend: String,
     notes: Option<String>,
@@ -578,7 +578,7 @@ async fn upload_mmlu_pro(
     // Create experiment run with just the MMLU benchmark score
     let experiment_run = ExperimentRun {
         model_name: model,
-        quantization: quant,
+        quantization,
         backend,
         backend_version: "unknown".to_string(),
         hardware_config,
