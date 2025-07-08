@@ -37,20 +37,38 @@ pub async fn get_grouped_performance(
                 CONCAT(hp.gpu_model, ' / ', hp.cpu_arch) as hardware,
                 CASE 
                     WHEN $1 = 'mmlu' THEN (
-                        SELECT AVG(score) FROM mmlu_scores WHERE test_run_id = tr.id
+                        SELECT AVG(ms.score) 
+                        FROM mmlu_scores_v2 ms
+                        JOIN model_variants mv ON ms.model_variant_id = mv.id
+                        WHERE mv.model_name = tr.model_name AND mv.quantization = tr.quantization
                     )
                     WHEN $1 = 'gsm8k' THEN (
-                        SELECT (CAST(problems_solved AS FLOAT) / CAST(total_problems AS FLOAT)) * 100
-                        FROM gsm8k_scores WHERE test_run_id = tr.id LIMIT 1
+                        SELECT gs.accuracy * 100
+                        FROM gsm8k_scores_v2 gs
+                        JOIN model_variants mv ON gs.model_variant_id = mv.id
+                        WHERE mv.model_name = tr.model_name AND mv.quantization = tr.quantization
+                        LIMIT 1
                     )
                     WHEN $1 = 'humaneval' THEN (
-                        SELECT pass_at_1 FROM humaneval_scores WHERE test_run_id = tr.id LIMIT 1
+                        SELECT hs.pass_at_1
+                        FROM humaneval_scores_v2 hs
+                        JOIN model_variants mv ON hs.model_variant_id = mv.id
+                        WHERE mv.model_name = tr.model_name AND mv.quantization = tr.quantization
+                        LIMIT 1
                     )
                     WHEN $1 = 'hellaswag' THEN (
-                        SELECT accuracy FROM hellaswag_scores WHERE test_run_id = tr.id LIMIT 1
+                        SELECT hs.accuracy
+                        FROM hellaswag_scores_v2 hs
+                        JOIN model_variants mv ON hs.model_variant_id = mv.id
+                        WHERE mv.model_name = tr.model_name AND mv.quantization = tr.quantization
+                        LIMIT 1
                     )
                     WHEN $1 = 'truthfulqa' THEN (
-                        SELECT truthful_score FROM truthfulqa_scores WHERE test_run_id = tr.id LIMIT 1
+                        SELECT ts.truthful_score
+                        FROM truthfulqa_scores_v2 ts
+                        JOIN model_variants mv ON ts.model_variant_id = mv.id
+                        WHERE mv.model_name = tr.model_name AND mv.quantization = tr.quantization
+                        LIMIT 1
                     )
                     WHEN $1 = 'none' THEN NULL
                     ELSE NULL
