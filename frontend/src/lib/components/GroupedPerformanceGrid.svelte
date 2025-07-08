@@ -11,11 +11,11 @@
   let expandedModels = new Set();
   
   // Filter and sort values
-  let selectedBenchmark = 'none'; // Default to no benchmark since we don't have scores yet
+  let selectedBenchmark = 'mmlu'; // Default to MMLU Pro
   let minQuality = 0;
   let maxMemory = 100;
   let minSpeed = 0;
-  let sortBy = 'speed'; // Default to speed sorting when no benchmark
+  let sortBy = 'quality'; // Default to quality sorting
   let sortDirection = 'desc';
   
   async function loadData() {
@@ -93,16 +93,18 @@
 
 <div class="grouped-performance-grid">
   <div class="controls">
-    <BenchmarkPicker 
-      bind:selectedBenchmark
-      on:change={handleBenchmarkChange}
-    />
+    {#if false}
+      <BenchmarkPicker 
+        bind:selectedBenchmark
+        on:change={handleBenchmarkChange}
+      />
+    {/if}
     
     <div class="filters">
       {#if selectedBenchmark !== 'none'}
         <div class="filter-group">
           <label>
-            Quality ≥ 
+            MMLU Score ≥ 
             <input 
               type="number" 
               bind:value={minQuality} 
@@ -164,7 +166,7 @@
             class="sortable" 
             on:click={() => handleSortChange('quality')}
           >
-            {selectedBenchmark.toUpperCase()} Score {getSortIndicator('quality')}
+            MMLU Score {getSortIndicator('quality')}
           </div>
         {/if}
         <div 
