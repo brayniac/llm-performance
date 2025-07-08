@@ -12,6 +12,7 @@ pub mod experiment;
 pub mod hardware;
 pub mod metrics;
 pub mod validation;
+pub mod model_variant;
 
 // Re-export commonly used types
 pub use api::*;
@@ -20,6 +21,7 @@ pub use experiment::*;
 pub use hardware::*;
 pub use metrics::*;
 pub use validation::*;
+pub use model_variant::*;
 
 // Re-export metric names for easy access
 pub use metrics::metric_names;

@@ -13,7 +13,7 @@ use llm_benchmark_types::HealthResponse;
 mod models;
 mod handlers;
 
-use handlers::{get_performance_grid, get_comparison, get_configurations, get_detail, upload_experiment, get_grouped_performance, delete_test_run, delete_by_model_quant, delete_benchmark_scores};
+use handlers::{get_performance_grid, get_comparison, get_configurations, get_detail, upload_experiment, get_grouped_performance, delete_test_run, delete_by_model_quant, delete_benchmark_scores, upload_benchmarks_raw};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -50,6 +50,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/delete/:test_run_id", delete(delete_test_run))
         .route("/api/delete-by-model", post(delete_by_model_quant))
         .route("/api/delete-benchmark/:test_run_id", post(delete_benchmark_scores))
+        .route("/api/benchmarks/upload", post(upload_benchmarks_raw))
         .route("/health", get(health_check))
         // Serve static files (your built frontend)
         .nest_service("/", ServeDir::new("../frontend/build"))

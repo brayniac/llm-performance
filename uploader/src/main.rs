@@ -64,19 +64,23 @@ enum Commands {
         #[arg(short, long)]
         file: PathBuf,
         
-        /// Model slug (e.g., "TheDrummer/Snowpiercer-15B-v1")
-        #[arg(short, long)]
-        model: String,
+        /// Test run ID to attach scores to (if not provided, creates new test run)
+        #[arg(short = 't', long = "test-run-id")]
+        test_run_id: Option<String>,
         
-        /// Quantization format (e.g., "Q3_K_L")
+        /// Model slug (required if creating new test run)
+        #[arg(short, long)]
+        model: Option<String>,
+        
+        /// Quantization format (required if creating new test run)
         #[arg(short = 'q', long = "quantization")]
-        quantization: String,
+        quantization: Option<String>,
         
         /// API server URL (default: http://localhost:3000)
         #[arg(short, long, default_value = "http://localhost:3000")]
         server: String,
         
-        /// Backend name (default: llama.cpp)
+        /// Backend name (default: llama.cpp, only used for new test runs)
         #[arg(short, long, default_value = "llama.cpp")]
         backend: String,
         
@@ -161,8 +165,8 @@ async fn main() -> Result<()> {
         Commands::Benchmarks { test_run_id, file, server } => {
             upload_benchmarks_only(test_run_id, file, server).await?;
         }
-        Commands::MmluPro { file, model, quantization, server, backend, notes } => {
-            upload_mmlu_pro(file, model, quantization, server, backend, notes).await?;
+        Commands::MmluPro { file, test_run_id, model, quantization, server, backend, notes } => {
+            upload_mmlu_pro(file, test_run_id, model, quantization, server, backend, notes).await?;
         }
         Commands::Custom { file, server } => {
             upload_custom(file, server).await?;
@@ -294,6 +298,39 @@ async fn upload_llama_bench(
     
     // Upload to server
     upload_experiment(experiment_run, &server).await?;
+    
+    Ok(())
+}
+
+async fn upload_benchmark_scores(request: llm_benchmark_types::UploadBenchmarkRequest, server: &str) -> Result<()> {
+    let client = reqwest::Client::new();
+    let url = format!("{}/api/benchmarks/upload", server);
+    
+    println!("Uploading benchmark scores to {}...", url);
+    println!("Model: {}/{}", request.model_name, request.quantization);
+    println!("Benchmarks: {} scores", request.benchmark_scores.len());
+    
+    let response = client
+        .post(&url)
+        .json(&request)
+        .send()
+        .await?;
+    
+    if response.status().is_success() {
+        let result: llm_benchmark_types::UploadBenchmarkResponse = response.json().await?;
+        if result.success {
+            println!("✅ Upload successful!");
+            println!("{}", result.message);
+            if let Some(variant_id) = result.model_variant_id {
+                println!("Model variant ID: {}", variant_id);
+            }
+        } else {
+            return Err(anyhow!("Upload failed: {}", result.message));
+        }
+    } else {
+        let error_text = response.text().await?;
+        return Err(anyhow!("Upload failed: {}", error_text));
+    }
     
     Ok(())
 }
@@ -484,8 +521,9 @@ async fn upload_benchmarks_only(test_run_id: String, file: PathBuf, _server: Str
 
 async fn upload_mmlu_pro(
     file: PathBuf,
-    model: String,
-    quantization: String,
+    test_run_id: Option<String>,
+    model: Option<String>,
+    quantization: Option<String>,
     server: String,
     backend: String,
     notes: Option<String>,
@@ -562,35 +600,26 @@ async fn upload_mmlu_pro(
         })),
     };
     
-    // Create generic hardware config for benchmark-only upload
-    // MMLU-Pro scores are hardware-independent - they depend only on model+quantization
-    let hardware_config = HardwareConfig {
-        gpu_model: "Generic (Benchmark Only)".to_string(),
-        gpu_memory_gb: 1, // Minimal valid value
-        cpu_model: "Generic (Benchmark Only)".to_string(),
-        cpu_arch: "generic".to_string(),
-        ram_gb: None,
-        ram_type: None,
-        virtualization_type: None,
-        optimizations: vec![],
-    };
+    // Check if we're uploading to an existing test run or creating benchmark scores
+    if let Some(test_id) = test_run_id {
+        // TODO: Implement adding benchmarks to existing test run
+        // For now, this is not supported
+        return Err(anyhow!("Adding benchmarks to existing test runs is not yet implemented"));
+    }
     
-    // Create experiment run with just the MMLU benchmark score
-    let experiment_run = ExperimentRun {
+    // Ensure we have model and quantization
+    let model = model.ok_or_else(|| anyhow!("Model name is required when not specifying test run ID"))?;
+    let quantization = quantization.ok_or_else(|| anyhow!("Quantization is required when not specifying test run ID"))?;
+    
+    // Upload benchmark scores to the new endpoint
+    let upload_request = llm_benchmark_types::UploadBenchmarkRequest {
         model_name: model,
         quantization,
-        backend,
-        backend_version: "unknown".to_string(),
-        hardware_config,
-        performance_metrics: vec![], // No performance metrics from MMLU-Pro
         benchmark_scores: vec![BenchmarkScoreType::MMLU(mmlu_score)],
-        timestamp: test_timestamp,
-        status: ExperimentStatus::Completed,
-        notes,
+        timestamp: Some(test_timestamp),
     };
     
-    // Upload to server
-    upload_experiment(experiment_run, &server).await?;
+    upload_benchmark_scores(upload_request, &server).await?;
     
     Ok(())
 }
