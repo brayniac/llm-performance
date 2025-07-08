@@ -5,6 +5,7 @@
   import BenchmarkPicker from './BenchmarkPicker.svelte';
   import PerformanceFilters from './PerformanceFilters.svelte';
   import GroupedGridTable from './GroupedGridTable.svelte';
+  import HardwareFilters from './HardwareFilters.svelte';
   
   let models = [];
   let loading = true;
@@ -17,6 +18,7 @@
   let minSpeed = 0;
   let sortBy = 'quality'; // Default to quality sorting
   let sortDirection = 'desc';
+  let selectedHardwareCategories = []; // All categories selected by default
   
   async function loadData() {
     loading = true;
@@ -28,6 +30,13 @@
       sort_by: sortBy,
       sort_direction: sortDirection
     });
+    
+    // Add hardware categories if any are selected
+    if (selectedHardwareCategories.length > 0) {
+      selectedHardwareCategories.forEach(category => {
+        params.append('hardware_categories', category);
+      });
+    }
     
     try {
       const response = await fetch(`/api/grouped-performance?${params}`);
@@ -53,6 +62,12 @@
   // Handle benchmark selection change
   function handleBenchmarkChange(event) {
     selectedBenchmark = event.detail.benchmark;
+    loadData();
+  }
+  
+  // Handle hardware filter change
+  function handleHardwareFilterChange(event) {
+    selectedHardwareCategories = event.detail.selectedCategories;
     loadData();
   }
   
@@ -99,6 +114,11 @@
         on:change={handleBenchmarkChange}
       />
     {/if}
+    
+    <HardwareFilters 
+      bind:selectedCategories={selectedHardwareCategories}
+      on:change={handleHardwareFilterChange}
+    />
     
     <div class="filters">
       {#if selectedBenchmark !== 'none'}

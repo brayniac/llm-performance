@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{ExperimentRun, ExperimentSummary};
+use crate::hardware::HardwareCategory;
 
 /// Request to upload a new experiment run
 #[derive(Debug, Serialize, Deserialize)]
@@ -68,6 +69,9 @@ pub struct GroupedPerformanceRequest {
     
     /// Sort direction ("asc" or "desc")
     pub sort_direction: Option<String>,
+    
+    /// Hardware categories to include (if empty, all are included)
+    pub hardware_categories: Option<Vec<HardwareCategory>>,
 }
 
 /// Row in the performance grid
@@ -159,6 +163,9 @@ pub struct QuantizationPerformance {
     
     /// Hardware summary
     pub hardware: String,
+    
+    /// Hardware category
+    pub hardware_category: HardwareCategory,
 }
 
 /// Request for comparison between two configurations

@@ -40,6 +40,32 @@ pub enum HardwareType {
     CpuOnly,
 }
 
+/// Hardware category for filtering
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum HardwareCategory {
+    /// Consumer GPU (e.g., RTX 4090, RTX 3090)
+    ConsumerGpu,
+    /// Consumer CPU (e.g., Ryzen, Intel Core)
+    ConsumerCpu,
+    /// Datacenter GPU (e.g., A100, H100, L4, L40)
+    DatacenterGpu,
+    /// Datacenter CPU (e.g., Xeon, EPYC)
+    DatacenterCpu,
+}
+
+impl HardwareCategory {
+    /// Get a human-readable label for the category
+    pub fn label(&self) -> &'static str {
+        match self {
+            HardwareCategory::ConsumerGpu => "Consumer GPU",
+            HardwareCategory::ConsumerCpu => "Consumer CPU",
+            HardwareCategory::DatacenterGpu => "Datacenter GPU",
+            HardwareCategory::DatacenterCpu => "Datacenter CPU",
+        }
+    }
+}
+
 impl HardwareConfig {
     /// Create a new hardware configuration
     pub fn new(
@@ -124,6 +150,28 @@ impl HardwareConfig {
     /// Check if a specific optimization is enabled
     pub fn has_optimization(&self, optimization: &str) -> bool {
         self.optimizations.iter().any(|opt| opt == optimization)
+    }
+
+    /// Determine the hardware category based on GPU and CPU model
+    pub fn hardware_category(&self) -> HardwareCategory {
+        // Check GPU first
+        if self.gpu_model.contains("RTX") || self.gpu_model.contains("GTX") {
+            HardwareCategory::ConsumerGpu
+        } else if self.gpu_model.contains("A100") || self.gpu_model.contains("H100") 
+            || self.gpu_model.contains("L4") || self.gpu_model.contains("L40")
+            || self.gpu_model.contains("V100") || self.gpu_model.contains("T4") {
+            HardwareCategory::DatacenterGpu
+        } else if self.gpu_model == "CPU Only" || self.gpu_model == "N/A" || self.gpu_memory_gb == 0 {
+            // CPU only - check CPU model
+            if self.cpu_model.contains("Xeon") || self.cpu_model.contains("EPYC") {
+                HardwareCategory::DatacenterCpu
+            } else {
+                HardwareCategory::ConsumerCpu
+            }
+        } else {
+            // Unknown GPU, default to consumer
+            HardwareCategory::ConsumerGpu
+        }
     }
 }
 

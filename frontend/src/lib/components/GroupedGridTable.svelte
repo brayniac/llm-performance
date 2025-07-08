@@ -31,6 +31,26 @@
     if (score >= 50) return '#ffc107';
     return '#dc3545';
   }
+  
+  function getHardwareCategoryLabel(category) {
+    const labels = {
+      'consumer_gpu': 'Consumer GPU',
+      'consumer_cpu': 'Consumer CPU', 
+      'datacenter_gpu': 'Datacenter GPU',
+      'datacenter_cpu': 'Datacenter CPU'
+    };
+    return labels[category] || category;
+  }
+  
+  function getHardwareCategoryColor(category) {
+    const colors = {
+      'consumer_gpu': '#2196f3',
+      'consumer_cpu': '#4caf50',
+      'datacenter_gpu': '#ff9800',
+      'datacenter_cpu': '#9c27b0'
+    };
+    return colors[category] || '#6c757d';
+  }
 </script>
 
 <div class="model-row" class:expanded style="grid-template-columns: {benchmark === 'none' ? '2.5fr 1.5fr 1fr 0.8fr 1fr' : '2.5fr 1.5fr 1fr 1fr 0.8fr 1fr'}">
@@ -63,6 +83,13 @@
   
   <div class="speed" class:unknown={model.best_quantization.tokens_per_second === 0}>
     {model.best_quantization.tokens_per_second === 0 ? 'Unknown' : model.best_quantization.tokens_per_second.toFixed(1) + ' tok/s'}
+    <span 
+      class="hardware-badge" 
+      style="background-color: {getHardwareCategoryColor(model.best_quantization.hardware_category)}"
+      title="{model.best_quantization.hardware}"
+    >
+      {getHardwareCategoryLabel(model.best_quantization.hardware_category)}
+    </span>
   </div>
   
   <div class="memory" class:unknown={model.best_quantization.memory_gb === 0}>
@@ -99,7 +126,16 @@
             {quant.quality_score === 0 ? 'Unknown' : quant.quality_score.toFixed(1) + '%'}
           </div>
         {/if}
-        <div class:unknown={quant.tokens_per_second === 0}>{quant.tokens_per_second === 0 ? 'Unknown' : quant.tokens_per_second.toFixed(1) + ' tok/s'}</div>
+        <div class="speed-cell" class:unknown={quant.tokens_per_second === 0}>
+          <span>{quant.tokens_per_second === 0 ? 'Unknown' : quant.tokens_per_second.toFixed(1) + ' tok/s'}</span>
+          <span 
+            class="hardware-badge small" 
+            style="background-color: {getHardwareCategoryColor(quant.hardware_category)}"
+            title="{quant.hardware}"
+          >
+            {getHardwareCategoryLabel(quant.hardware_category)}
+          </span>
+        </div>
         <div class:unknown={quant.memory_gb === 0}>{quant.memory_gb === 0 ? 'Unknown' : quant.memory_gb.toFixed(1) + ' GB'}</div>
         <div>
           <button 
@@ -243,5 +279,27 @@
   .unknown {
     color: #6c757d;
     font-style: italic;
+  }
+  
+  .hardware-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    color: white;
+    font-weight: 500;
+    margin-left: 0.5rem;
+    white-space: nowrap;
+  }
+  
+  .hardware-badge.small {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.3rem;
+  }
+  
+  .speed, .speed-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 </style>

@@ -12,9 +12,32 @@ use std::collections::HashMap;
 use llm_benchmark_types::{
     GroupedPerformanceRequest, GroupedPerformanceResponse, 
     ModelPerformanceGroup, QuantizationPerformance, ErrorResponse,
+    hardware::HardwareCategory,
 };
 
 use crate::AppState;
+
+/// Determine hardware category from GPU and CPU model strings
+fn determine_hardware_category(gpu_model: &str, cpu_arch: &str) -> HardwareCategory {
+    // Check GPU first
+    if gpu_model.contains("RTX") || gpu_model.contains("GTX") {
+        HardwareCategory::ConsumerGpu
+    } else if gpu_model.contains("A100") || gpu_model.contains("H100") 
+        || gpu_model.contains("L4") || gpu_model.contains("L40")
+        || gpu_model.contains("V100") || gpu_model.contains("T4") {
+        HardwareCategory::DatacenterGpu
+    } else if gpu_model == "CPU Only" || gpu_model == "N/A" || gpu_model.starts_with("CPU") {
+        // CPU only - check CPU model
+        if cpu_arch.contains("Xeon") || cpu_arch.contains("EPYC") {
+            HardwareCategory::DatacenterCpu
+        } else {
+            HardwareCategory::ConsumerCpu
+        }
+    } else {
+        // Unknown GPU, default to consumer
+        HardwareCategory::ConsumerGpu
+    }
+}
 
 /// Get grouped model performance with best quantization per model
 pub async fn get_grouped_performance(
@@ -35,6 +58,8 @@ pub async fn get_grouped_performance(
                 pm_speed.value as tokens_per_second,
                 pm_memory.value as memory_gb,
                 CONCAT(hp.gpu_model, ' / ', hp.cpu_arch) as hardware,
+                hp.gpu_model,
+                hp.cpu_arch,
                 CASE 
                     WHEN $1 = 'mmlu' THEN (
                         SELECT AVG(ms.score) 
@@ -105,9 +130,21 @@ pub async fn get_grouped_performance(
         let tokens_per_second: Option<f64> = row.get("tokens_per_second");
         let memory_gb: Option<f64> = row.get("memory_gb");
         let quality_score: Option<f64> = row.get("quality_score");
+        let gpu_model: String = row.get("gpu_model");
+        let cpu_arch: String = row.get("cpu_arch");
+        
+        // Determine hardware category
+        let hardware_category = determine_hardware_category(&gpu_model, &cpu_arch);
         
         // Count total quantizations for this model
         *total_quants_by_model.entry(model_name.clone()).or_insert(0) += 1;
+        
+        // Apply hardware category filter
+        if let Some(ref categories) = params.hardware_categories {
+            if !categories.is_empty() && !categories.contains(&hardware_category) {
+                continue;
+            }
+        }
         
         // Apply filters
         if let Some(min_speed) = params.min_speed {
@@ -145,6 +182,7 @@ pub async fn get_grouped_performance(
             memory_gb: memory_gb.unwrap_or(0.0), // Default to 0 if no memory data
             backend: row.get("backend"),
             hardware: row.get("hardware"),
+            hardware_category,
         };
         
         model_groups.entry(model_name.clone())
