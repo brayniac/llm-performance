@@ -48,7 +48,7 @@
   }
 </script>
 
-<div class="model-row" class:expanded style="grid-template-columns: {benchmark === 'none' ? '2.5fr 1.5fr 1fr 0.8fr 1fr' : '2.5fr 1.5fr 1fr 1fr 0.8fr 1fr'}">
+<div class="model-row" class:expanded style="grid-template-columns: {benchmark === 'none' ? '2.5fr 1.5fr 1.5fr 0.8fr 1fr' : '2.5fr 1.5fr 1fr 1.5fr 0.8fr 1fr'}">
   <div class="model-info">
     <button 
       class="expand-btn" 
@@ -140,7 +140,7 @@
 <style>
   .model-row {
     display: grid;
-    grid-template-columns: 2.5fr 1.5fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 2.5fr 1.5fr 1fr 1.5fr 0.8fr 1fr;
     gap: 1rem;
     padding: 1rem;
     border-bottom: 1px solid #e1e5e9;
@@ -233,7 +233,7 @@
   
   .quant-header {
     display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1.5fr 0.8fr 1fr;
     gap: 1rem;
     padding: 0.5rem 0;
     font-weight: 600;
@@ -244,19 +244,19 @@
   }
   
   .quant-header.no-benchmark {
-    grid-template-columns: 1.5fr 1fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1.5fr 0.8fr 1fr;
   }
   
   .quant-row {
     display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1.5fr 0.8fr 1fr;
     gap: 1rem;
     padding: 0.5rem 0;
     font-size: 0.9rem;
   }
   
   .quant-row.no-benchmark {
-    grid-template-columns: 1.5fr 1fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1.5fr 0.8fr 1fr;
   }
   
   .quant-row:hover {
