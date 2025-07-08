@@ -99,7 +99,7 @@ pub async fn upload_benchmarks_raw(
                     })?;
 
                 // Insert new scores
-                for category_score in &mmlu_score.category_scores {
+                for category_score in &mmlu_score.categories {
                     sqlx::query(
                         r#"
                         INSERT INTO mmlu_scores_v2 
@@ -110,8 +110,8 @@ pub async fn upload_benchmarks_raw(
                     .bind(model_variant_id)
                     .bind(&category_score.category)
                     .bind(category_score.score)
-                    .bind(category_score.total_questions.map(|v| v as i32))
-                    .bind(category_score.correct_answers.map(|v| v as i32))
+                    .bind(category_score.total_questions)
+                    .bind(category_score.correct_answers)
                     .bind(timestamp)
                     .bind(&mmlu_score.context)
                     .execute(&mut *tx)
@@ -128,7 +128,7 @@ pub async fn upload_benchmarks_raw(
                         )
                     })?;
                 }
-                scores_uploaded += mmlu_score.category_scores.len();
+                scores_uploaded += mmlu_score.categories.len();
             }
             _ => {
                 // TODO: Implement other benchmark types

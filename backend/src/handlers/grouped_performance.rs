@@ -8,7 +8,6 @@ use axum::{
 };
 use sqlx::Row;
 use std::collections::HashMap;
-use uuid::Uuid;
 
 use llm_benchmark_types::{
     GroupedPerformanceRequest, GroupedPerformanceResponse, 

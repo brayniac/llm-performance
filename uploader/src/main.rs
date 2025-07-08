@@ -525,8 +525,8 @@ async fn upload_mmlu_pro(
     model: Option<String>,
     quantization: Option<String>,
     server: String,
-    backend: String,
-    notes: Option<String>,
+    _backend: String,
+    _notes: Option<String>,
 ) -> Result<()> {
     
     // Read and parse the report.txt file
@@ -601,7 +601,7 @@ async fn upload_mmlu_pro(
     };
     
     // Check if we're uploading to an existing test run or creating benchmark scores
-    if let Some(test_id) = test_run_id {
+    if let Some(_test_id) = test_run_id {
         // TODO: Implement adding benchmarks to existing test run
         // For now, this is not supported
         return Err(anyhow!("Adding benchmarks to existing test runs is not yet implemented"));

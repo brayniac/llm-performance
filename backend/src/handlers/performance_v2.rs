@@ -7,10 +7,10 @@ use axum::{
     response::Json,
 };
 use serde::Deserialize;
-use std::collections::HashMap;
+use sqlx::Row;
 use uuid::Uuid;
 
-use llm_benchmark_types::{PerformanceGridRequest, PerformanceGridResponse, ErrorResponse};
+use llm_benchmark_types::{PerformanceGridRow, ErrorResponse};
 
 use crate::AppState;
 
@@ -26,7 +26,7 @@ pub struct GridFilters {
 pub async fn get_performance_grid_v2(
     Query(filters): Query<GridFilters>,
     State(state): State<AppState>,
-) -> Result<Json<PerformanceGridResponse>, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<Vec<PerformanceGridRow>>, (StatusCode, Json<ErrorResponse>)> {
     // Build the query
     let mut query = String::from(
         r#"
@@ -152,7 +152,7 @@ pub async fn get_performance_grid_v2(
             )
         };
         
-        results.push(llm_benchmark_types::PerformanceGridItem {
+        results.push(PerformanceGridRow {
             id,
             model_name: model_name.clone(),
             short_name: get_short_model_name(&model_name),
@@ -172,7 +172,7 @@ pub async fn get_performance_grid_v2(
         });
     }
 
-    Ok(Json(PerformanceGridResponse { results }))
+    Ok(Json(results))
 }
 
 fn get_short_model_name(full_name: &str) -> String {
