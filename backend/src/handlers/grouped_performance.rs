@@ -152,6 +152,17 @@ pub async fn get_grouped_performance(
         // Count total quantizations for this model (before filtering)
         *total_quants_by_model.entry(model_name.clone()).or_insert(0) += 1;
         
+        // Skip entries without any performance data (benchmark-only entries)
+        if tokens_per_second.is_none() && memory_gb.is_none() {
+            continue;
+        }
+        
+        // Also skip obvious generic entries
+        if gpu_model.contains("Generic") || cpu_arch.contains("Generic") || 
+           gpu_model.contains("Benchmark Only") || cpu_arch.contains("Benchmark Only") {
+            continue;
+        }
+        
         // Determine hardware category
         let hardware_category = determine_hardware_category(&gpu_model, &cpu_arch);
         
