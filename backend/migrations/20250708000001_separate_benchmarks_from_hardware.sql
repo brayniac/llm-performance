@@ -212,7 +212,7 @@ WITH latest_truthfulqa AS (
         tr.model_name,
         tr.quantization,
         tq.truthful_score,
-        tq.truthful_and_informative_score,
+        tq.helpful_score as truthful_and_informative_score,
         tq.total_questions,
         tq.timestamp,
         tq.context
@@ -237,8 +237,12 @@ WITH latest_generic AS (
         tr.model_name,
         tr.quantization,
         gb.benchmark_name,
-        gb.overall_score,
-        gb.sub_scores,
+        gb.score as overall_score,
+        jsonb_build_object(
+            'score', gb.score,
+            'total_questions', gb.total_questions,
+            'correct_answers', gb.correct_answers
+        ) as sub_scores,
         gb.timestamp,
         gb.context
     FROM generic_benchmark_scores gb
