@@ -223,8 +223,16 @@ pub async fn get_grouped_performance(
                 return None;
             }
             
-            // Sort by quality score (already sorted by query, but just to be sure)
-            quants.sort_by(|a, b| b.quality_score.partial_cmp(&a.quality_score).unwrap());
+            // Sort by quality score first, then by speed if quality is equal
+            quants.sort_by(|a, b| {
+                match b.quality_score.partial_cmp(&a.quality_score).unwrap() {
+                    std::cmp::Ordering::Equal => {
+                        // If quality scores are equal, sort by speed (higher is better)
+                        b.tokens_per_second.partial_cmp(&a.tokens_per_second).unwrap()
+                    }
+                    other => other
+                }
+            });
             
             let qualifying_count = quants.len();
             let best_quant = quants[0].clone();
