@@ -10,12 +10,11 @@ use uuid::Uuid;
 use std::collections::HashMap;
 
 use llm_benchmark_types::{
-    DetailData, ErrorResponse, ExperimentSummary, ConfigurationListResponse,
-    BenchmarkScore  // Import trait for overall_score method
+    DetailData, ErrorResponse, ExperimentSummary, ConfigurationListResponse
 };
 
 use crate::{
-    models::{PerformanceMetricQueryResult, benchmark_queries},
+    models::PerformanceMetricQueryResult,
     AppState
 };
 
@@ -54,10 +53,22 @@ pub async fn get_configurations(
 
     let mut configurations = Vec::new();
     for row in experiments {
-        // Get aggregated benchmark score for this test run
-        let overall_score = benchmark_queries::get_aggregated_benchmark_scores_for_test_run(&state.db, &row.id)
-            .await
-            .ok();
+        // Get aggregated benchmark score from v2 tables
+        let overall_score = sqlx::query!(
+            r#"
+            SELECT AVG(ms.score) as avg_score
+            FROM mmlu_scores_v2 ms
+            JOIN model_variants mv ON ms.model_variant_id = mv.id
+            WHERE mv.model_name = $1 AND mv.quantization = $2
+            "#,
+            row.model_name,
+            row.quantization
+        )
+        .fetch_one(&state.db)
+        .await
+        .map(|r| r.avg_score)
+        .ok()
+        .flatten();
         
         configurations.push(ExperimentSummary {
             id: row.id,
@@ -167,10 +178,21 @@ async fn get_detailed_config_data(
         .map(|row| (row.metric_name, row.value))
         .collect();
 
-    // Get overall score from aggregated benchmark scores
-    let overall_score = benchmark_queries::get_aggregated_benchmark_scores_for_test_run(db, &result.test_run_id)
-        .await
-        .unwrap_or(0.0);
+    // Get overall score from v2 benchmark scores
+    let overall_score = sqlx::query!(
+        r#"
+        SELECT AVG(ms.score) as avg_score
+        FROM mmlu_scores_v2 ms
+        JOIN model_variants mv ON ms.model_variant_id = mv.id
+        WHERE mv.model_name = $1 AND mv.quantization = $2
+        "#,
+        result.model_name,
+        result.quantization
+    )
+    .fetch_one(db)
+    .await
+    .map(|row| row.avg_score.unwrap_or(0.0))
+    .unwrap_or(0.0);
 
     let config_detail = llm_benchmark_types::ConfigDetail {
         name: format!("{} {}", result.model_name, result.quantization),
@@ -206,66 +228,142 @@ async fn get_category_scores(
     db: &sqlx::PgPool,
     test_run_id: &Uuid,
 ) -> Result<Vec<llm_benchmark_types::CategoryScore>, sqlx::Error> {
-    // Get all benchmark scores for this test run
-    let benchmark_scores = benchmark_queries::get_all_benchmark_scores_for_test_run(db, test_run_id).await?;
-    
     let mut categories = Vec::new();
     
-    // Convert benchmark scores to category scores for display
-    for score in benchmark_scores {
-        match score {
-            llm_benchmark_types::BenchmarkScoreType::MMLU(mmlu) => {
-                for category in &mmlu.categories {
-                    categories.push(llm_benchmark_types::CategoryScore {
-                        name: format!("MMLU - {}", category.category),
-                        score: category.score,
-                        total_questions: Some(category.total_questions),
-                        correct_answers: Some(category.correct_answers),
-                    });
-                }
-            }
-            llm_benchmark_types::BenchmarkScoreType::GSM8K(gsm8k) => {
-                categories.push(llm_benchmark_types::CategoryScore {
-                    name: "GSM8K".to_string(),
-                    score: gsm8k.overall_score(),
-                    total_questions: Some(gsm8k.total_problems),
-                    correct_answers: Some(gsm8k.problems_solved),
-                });
-            }
-            llm_benchmark_types::BenchmarkScoreType::HumanEval(humaneval) => {
-                categories.push(llm_benchmark_types::CategoryScore {
-                    name: "HumanEval".to_string(),
-                    score: humaneval.pass_at_1,
-                    total_questions: Some(humaneval.total_problems),
-                    correct_answers: None,
-                });
-            }
-            llm_benchmark_types::BenchmarkScoreType::HellaSwag(hellaswag) => {
-                categories.push(llm_benchmark_types::CategoryScore {
-                    name: "HellaSwag".to_string(),
-                    score: hellaswag.accuracy,
-                    total_questions: Some(hellaswag.total_questions),
-                    correct_answers: Some(hellaswag.correct_answers),
-                });
-            }
-            llm_benchmark_types::BenchmarkScoreType::TruthfulQA(truthfulqa) => {
-                categories.push(llm_benchmark_types::CategoryScore {
-                    name: "TruthfulQA".to_string(),
-                    score: truthfulqa.truthful_score,
-                    total_questions: Some(truthfulqa.total_questions),
-                    correct_answers: None,
-                });
-            }
-            llm_benchmark_types::BenchmarkScoreType::Generic(generic) => {
-                categories.push(llm_benchmark_types::CategoryScore {
-                    name: generic.benchmark_name.clone(),
-                    score: generic.score,
-                    total_questions: generic.total_questions,
-                    correct_answers: generic.correct_answers,
-                });
-            }
-        }
+    // First, get model variant info from test run
+    let variant_info = sqlx::query!(
+        r#"
+        SELECT tr.model_name, tr.quantization
+        FROM test_runs tr
+        WHERE tr.id = $1
+        "#,
+        test_run_id
+    )
+    .fetch_one(db)
+    .await?;
+    
+    // Get MMLU scores from v2 tables
+    let mmlu_scores = sqlx::query!(
+        r#"
+        SELECT ms.category, ms.score, ms.total_questions, ms.correct_answers
+        FROM mmlu_scores_v2 ms
+        JOIN model_variants mv ON ms.model_variant_id = mv.id
+        WHERE mv.model_name = $1 AND mv.quantization = $2
+        ORDER BY ms.category
+        "#,
+        variant_info.model_name,
+        variant_info.quantization
+    )
+    .fetch_all(db)
+    .await?;
+    
+    for row in mmlu_scores {
+        categories.push(llm_benchmark_types::CategoryScore {
+            name: format!("MMLU - {}", row.category),
+            score: row.score,
+            total_questions: row.total_questions,
+            correct_answers: row.correct_answers,
+        });
     }
+    
+    // Get GSM8K scores from v2 tables
+    let gsm8k_score = sqlx::query!(
+        r#"
+        SELECT gs.accuracy, gs.problems_solved, gs.total_problems
+        FROM gsm8k_scores_v2 gs
+        JOIN model_variants mv ON gs.model_variant_id = mv.id
+        WHERE mv.model_name = $1 AND mv.quantization = $2
+        LIMIT 1
+        "#,
+        variant_info.model_name,
+        variant_info.quantization
+    )
+    .fetch_optional(db)
+    .await?;
+    
+    if let Some(row) = gsm8k_score {
+        categories.push(llm_benchmark_types::CategoryScore {
+            name: "GSM8K".to_string(),
+            score: row.accuracy * 100.0, // Convert to percentage
+            total_questions: Some(row.total_problems),
+            correct_answers: Some(row.problems_solved),
+        });
+    }
+    
+    // Get HumanEval scores from v2 tables
+    let humaneval_score = sqlx::query!(
+        r#"
+        SELECT hs.pass_at_1
+        FROM humaneval_scores_v2 hs
+        JOIN model_variants mv ON hs.model_variant_id = mv.id
+        WHERE mv.model_name = $1 AND mv.quantization = $2
+        LIMIT 1
+        "#,
+        variant_info.model_name,
+        variant_info.quantization
+    )
+    .fetch_optional(db)
+    .await?;
+    
+    if let Some(row) = humaneval_score {
+        categories.push(llm_benchmark_types::CategoryScore {
+            name: "HumanEval".to_string(),
+            score: row.pass_at_1,
+            total_questions: None, // Not stored in v2 tables
+            correct_answers: None,
+        });
+    }
+    
+    // Get HellaSwag scores from v2 tables
+    let hellaswag_score = sqlx::query!(
+        r#"
+        SELECT hs.accuracy, hs.total_questions, hs.correct_answers
+        FROM hellaswag_scores_v2 hs
+        JOIN model_variants mv ON hs.model_variant_id = mv.id
+        WHERE mv.model_name = $1 AND mv.quantization = $2
+        LIMIT 1
+        "#,
+        variant_info.model_name,
+        variant_info.quantization
+    )
+    .fetch_optional(db)
+    .await?;
+    
+    if let Some(row) = hellaswag_score {
+        categories.push(llm_benchmark_types::CategoryScore {
+            name: "HellaSwag".to_string(),
+            score: row.accuracy,
+            total_questions: row.total_questions,
+            correct_answers: row.correct_answers,
+        });
+    }
+    
+    // Get TruthfulQA scores from v2 tables
+    let truthfulqa_score = sqlx::query!(
+        r#"
+        SELECT ts.truthful_score, ts.total_questions
+        FROM truthfulqa_scores_v2 ts
+        JOIN model_variants mv ON ts.model_variant_id = mv.id
+        WHERE mv.model_name = $1 AND mv.quantization = $2
+        LIMIT 1
+        "#,
+        variant_info.model_name,
+        variant_info.quantization
+    )
+    .fetch_optional(db)
+    .await?;
+    
+    if let Some(row) = truthfulqa_score {
+        categories.push(llm_benchmark_types::CategoryScore {
+            name: "TruthfulQA".to_string(),
+            score: row.truthful_score,
+            total_questions: row.total_questions,
+            correct_answers: None,
+        });
+    }
+    
+    // Note: Generic benchmark scores would still come from v1 tables if needed
+    // as they're tied to test runs, not model variants
     
     Ok(categories)
 }
