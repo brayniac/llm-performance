@@ -18,7 +18,7 @@ use llm_benchmark_types::{
 use crate::AppState;
 
 /// Determine hardware category from GPU and CPU model strings
-fn determine_hardware_category(gpu_model: &str, cpu_arch: &str) -> HardwareCategory {
+fn determine_hardware_category(gpu_model: &str, cpu_model: &str) -> HardwareCategory {
     // Check GPU first
     if gpu_model.contains("RTX") || gpu_model.contains("GTX") {
         HardwareCategory::ConsumerGpu
@@ -28,7 +28,7 @@ fn determine_hardware_category(gpu_model: &str, cpu_arch: &str) -> HardwareCateg
         HardwareCategory::DatacenterGpu
     } else if gpu_model == "CPU Only" || gpu_model == "N/A" || gpu_model.starts_with("CPU") {
         // CPU only - check CPU model
-        if cpu_arch.contains("Xeon") || cpu_arch.contains("EPYC") {
+        if cpu_model.contains("Xeon") || cpu_model.contains("EPYC") {
             HardwareCategory::DatacenterCpu
         } else {
             HardwareCategory::ConsumerCpu
@@ -166,7 +166,7 @@ pub async fn get_grouped_performance(
         }
         
         // Determine hardware category
-        let hardware_category = determine_hardware_category(&gpu_model, &cpu_arch);
+        let hardware_category = determine_hardware_category(&gpu_model, &cpu_model);
         
         // Apply hardware category filter
         if !filter_categories.is_empty() && !filter_categories.contains(&hardware_category) {
