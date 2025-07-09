@@ -4,8 +4,12 @@
   export let model;
   export let benchmark;
   export let expanded = false;
+  export let selectedConfigs = [];
   
   const dispatch = createEventDispatcher();
+  
+  // Check if the best quantization is selected
+  $: isSelected = selectedConfigs.includes(model.best_quantization.id);
   
   function getShortModelName(fullName) {
     const parts = fullName.split('/');
@@ -24,6 +28,10 @@
   
   function viewDetails(id) {
     dispatch('viewDetails', { id });
+  }
+  
+  function handleCheckboxChange() {
+    dispatch('selectionChanged', { configId: model.best_quantization.id });
   }
   
   function getScoreColor(score) {
@@ -70,7 +78,15 @@
   }
 </script>
 
-<div class="model-row" class:expanded style="grid-template-columns: {benchmark === 'none' ? '2.5fr 1.5fr 1fr 1fr 0.8fr 1fr' : '2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr'}">
+<div class="model-row" class:expanded class:selected={isSelected} style="grid-template-columns: {benchmark === 'none' ? '40px 2.5fr 1.5fr 1fr 1fr 0.8fr 1fr' : '40px 2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr'}">
+  <div class="checkbox-column">
+    <input 
+      type="checkbox" 
+      checked={isSelected}
+      disabled={!isSelected && selectedConfigs.length >= 2}
+      on:change={handleCheckboxChange}
+    />
+  </div>
   <div class="model-info">
     <button 
       class="expand-btn" 
@@ -164,7 +180,7 @@
 <style>
   .model-row {
     display: grid;
-    grid-template-columns: 2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 40px 2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
     gap: 1rem;
     padding: 1rem;
     border-bottom: 1px solid #e1e5e9;
@@ -178,6 +194,27 @@
   .model-row.expanded {
     background-color: #e3f2fd;
     border-left: 4px solid #2196f3;
+  }
+  
+  .model-row.selected {
+    background-color: #fff8e1;
+  }
+  
+  .checkbox-column {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .checkbox-column input[type="checkbox"] {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+  }
+  
+  .checkbox-column input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
   
   .model-info {

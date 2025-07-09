@@ -6,10 +6,12 @@
   import PerformanceFilters from './PerformanceFilters.svelte';
   import GroupedGridTable from './GroupedGridTable.svelte';
   import HardwareFilters from './HardwareFilters.svelte';
+  import SelectionHeader from './SelectionHeader.svelte';
   
   let models = [];
   let loading = true;
   let expandedModels = new Set();
+  let selectedConfigs = [];
   
   // Filter and sort values
   let selectedBenchmark = 'mmlu'; // Default to MMLU Pro
@@ -95,6 +97,23 @@
     goto(`/detail/${id}`);
   }
   
+  // Handle selection changes
+  function handleSelectionChanged(configId) {
+    if (selectedConfigs.includes(configId)) {
+      selectedConfigs = selectedConfigs.filter(id => id !== configId);
+    } else if (selectedConfigs.length < 2) {
+      selectedConfigs = [...selectedConfigs, configId];
+    }
+  }
+  
+  // Handle comparison
+  function handleCompare(event) {
+    const { selectedConfigs: configs } = event.detail;
+    if (configs.length === 2) {
+      goto(`/compare/${configs[0]}/${configs[1]}`);
+    }
+  }
+  
   // Get sort indicator
   function getSortIndicator(field) {
     if (sortBy === field) {
@@ -170,8 +189,16 @@
   {:else if models.length === 0}
     <div class="no-results">No models match the current filters</div>
   {:else}
+    {#if selectedConfigs.length > 0}
+      <SelectionHeader 
+        {selectedConfigs}
+        on:compare={handleCompare}
+      />
+    {/if}
+    
     <div class="grid-container">
       <div class="grid-header" class:no-benchmark={selectedBenchmark === 'none'}>
+        <div class="checkbox-column"></div>
         <div 
           class="sortable" 
           on:click={() => handleSortChange('model_name')}
@@ -208,8 +235,10 @@
           {model}
           benchmark={selectedBenchmark}
           expanded={expandedModels.has(model.model_name)}
+          {selectedConfigs}
           on:toggle={() => toggleModel(model.model_name)}
           on:viewDetails={(e) => viewDetails(e.detail.id)}
+          on:selectionChanged={(e) => handleSelectionChanged(e.detail.configId)}
         />
       {/each}
     </div>
@@ -267,7 +296,7 @@
   
   .grid-header {
     display: grid;
-    grid-template-columns: 2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 40px 2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
     gap: 1rem;
     padding: 1rem;
     background-color: #6c757d;
@@ -276,7 +305,14 @@
   }
   
   .grid-header.no-benchmark {
-    grid-template-columns: 2.5fr 1.5fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 40px 2.5fr 1.5fr 1fr 1fr 0.8fr 1fr;
+  }
+  
+  .checkbox-column {
+    width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   
   .sortable {
