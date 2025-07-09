@@ -10,12 +10,11 @@ use uuid::Uuid;
 use std::collections::HashMap;
 
 use llm_benchmark_types::{
-    ComparisonRequest, ComparisonData, ErrorResponse,
-    BenchmarkScore  // Import trait for overall_score method
+    ComparisonRequest, ComparisonData, ErrorResponse
 };
 
 use crate::{
-    models::{PerformanceMetricQueryResult, benchmark_queries},
+    models::PerformanceMetricQueryResult,
     AppState
 };
 
@@ -104,10 +103,21 @@ async fn get_config_data_by_uuid(
         .map(|row| (row.metric_name, row.value))
         .collect();
 
-    // Get overall score from aggregated benchmark scores
-    let overall_score = benchmark_queries::get_aggregated_benchmark_scores_for_test_run(db, &test_run.test_run_id)
-        .await
-        .unwrap_or(0.0);
+    // Get overall score from v2 benchmark scores
+    let overall_score = sqlx::query!(
+        r#"
+        SELECT AVG(ms.score) as avg_score
+        FROM mmlu_scores_v2 ms
+        JOIN model_variants mv ON ms.model_variant_id = mv.id
+        WHERE mv.model_name = $1 AND mv.quantization = $2
+        "#,
+        test_run.model_name,
+        test_run.quantization
+    )
+    .fetch_one(db)
+    .await
+    .map(|row| row.avg_score.unwrap_or(0.0))
+    .unwrap_or(0.0);
 
     let config_summary = llm_benchmark_types::ConfigSummary {
         name: format!("{} {}", test_run.model_name, test_run.quantization),
@@ -132,75 +142,101 @@ async fn get_category_comparison(
     run_a_id: &Uuid,
     run_b_id: &Uuid,
 ) -> Result<Vec<llm_benchmark_types::CategoryComparison>, sqlx::Error> {
-    use llm_benchmark_types::BenchmarkScoreType;
     use std::collections::HashMap;
     
-    // Get benchmark scores for both test runs
-    let scores_a = benchmark_queries::get_all_benchmark_scores_for_test_run(db, run_a_id).await?;
-    let scores_b = benchmark_queries::get_all_benchmark_scores_for_test_run(db, run_b_id).await?;
+    // Get model variants for both test runs
+    let run_a = sqlx::query!(
+        "SELECT model_name, quantization FROM test_runs WHERE id = $1",
+        run_a_id
+    )
+    .fetch_one(db)
+    .await?;
+    
+    let run_b = sqlx::query!(
+        "SELECT model_name, quantization FROM test_runs WHERE id = $1",
+        run_b_id
+    )
+    .fetch_one(db)
+    .await?;
+    
     
     // Build a map of category names to scores for easier comparison
     let mut scores_map: HashMap<String, (Option<f64>, Option<f64>)> = HashMap::new();
     
-    // Helper to add scores to the map
-    let mut add_score = |name: String, score: f64, is_a: bool| {
-        let entry = scores_map.entry(name).or_insert((None, None));
-        if is_a {
-            entry.0 = Some(score);
-        } else {
-            entry.1 = Some(score);
-        }
-    };
+    // Get MMLU scores from v2 tables for both configs
+    let mmlu_scores_a = sqlx::query!(
+        r#"
+        SELECT ms.category, ms.score
+        FROM mmlu_scores_v2 ms
+        JOIN model_variants mv ON ms.model_variant_id = mv.id
+        WHERE mv.model_name = $1 AND mv.quantization = $2
+        ORDER BY ms.category
+        "#,
+        run_a.model_name,
+        run_a.quantization
+    )
+    .fetch_all(db)
+    .await?;
     
-    // Process scores from test run A
-    for score in scores_a {
-        match score {
-            BenchmarkScoreType::MMLU(mmlu) => {
-                for category in &mmlu.categories {
-                    add_score(format!("MMLU - {}", category.category), category.score, true);
-                }
-            }
-            BenchmarkScoreType::GSM8K(gsm8k) => {
-                add_score("GSM8K".to_string(), gsm8k.overall_score(), true);
-            }
-            BenchmarkScoreType::HumanEval(humaneval) => {
-                add_score("HumanEval".to_string(), humaneval.pass_at_1, true);
-            }
-            BenchmarkScoreType::HellaSwag(hellaswag) => {
-                add_score("HellaSwag".to_string(), hellaswag.accuracy, true);
-            }
-            BenchmarkScoreType::TruthfulQA(truthfulqa) => {
-                add_score("TruthfulQA".to_string(), truthfulqa.truthful_score, true);
-            }
-            BenchmarkScoreType::Generic(generic) => {
-                add_score(generic.benchmark_name.clone(), generic.score, true);
-            }
+    for row in mmlu_scores_a {
+        scores_map.insert(
+            format!("MMLU - {}", row.category),
+            (Some(row.score), None)
+        );
+    }
+    
+    let mmlu_scores_b = sqlx::query!(
+        r#"
+        SELECT ms.category, ms.score
+        FROM mmlu_scores_v2 ms
+        JOIN model_variants mv ON ms.model_variant_id = mv.id
+        WHERE mv.model_name = $1 AND mv.quantization = $2
+        ORDER BY ms.category
+        "#,
+        run_b.model_name,
+        run_b.quantization
+    )
+    .fetch_all(db)
+    .await?;
+    
+    for row in mmlu_scores_b {
+        let entry = scores_map.entry(format!("MMLU - {}", row.category))
+            .or_insert((None, None));
+        entry.1 = Some(row.score);
+    }
+    
+    // Get other benchmark scores from v2 tables
+    // GSM8K
+    if let Ok(gsm8k_a) = sqlx::query!(
+        r#"
+        SELECT gs.accuracy
+        FROM gsm8k_scores_v2 gs
+        JOIN model_variants mv ON gs.model_variant_id = mv.id
+        WHERE mv.model_name = $1 AND mv.quantization = $2
+        LIMIT 1
+        "#,
+        run_a.model_name,
+        run_a.quantization
+    ).fetch_optional(db).await {
+        if let Some(row) = gsm8k_a {
+            scores_map.insert("GSM8K".to_string(), (Some(row.accuracy * 100.0), None));
         }
     }
     
-    // Process scores from test run B
-    for score in scores_b {
-        match score {
-            BenchmarkScoreType::MMLU(mmlu) => {
-                for category in &mmlu.categories {
-                    add_score(format!("MMLU - {}", category.category), category.score, false);
-                }
-            }
-            BenchmarkScoreType::GSM8K(gsm8k) => {
-                add_score("GSM8K".to_string(), gsm8k.overall_score(), false);
-            }
-            BenchmarkScoreType::HumanEval(humaneval) => {
-                add_score("HumanEval".to_string(), humaneval.pass_at_1, false);
-            }
-            BenchmarkScoreType::HellaSwag(hellaswag) => {
-                add_score("HellaSwag".to_string(), hellaswag.accuracy, false);
-            }
-            BenchmarkScoreType::TruthfulQA(truthfulqa) => {
-                add_score("TruthfulQA".to_string(), truthfulqa.truthful_score, false);
-            }
-            BenchmarkScoreType::Generic(generic) => {
-                add_score(generic.benchmark_name.clone(), generic.score, false);
-            }
+    if let Ok(gsm8k_b) = sqlx::query!(
+        r#"
+        SELECT gs.accuracy
+        FROM gsm8k_scores_v2 gs
+        JOIN model_variants mv ON gs.model_variant_id = mv.id
+        WHERE mv.model_name = $1 AND mv.quantization = $2
+        LIMIT 1
+        "#,
+        run_b.model_name,
+        run_b.quantization
+    ).fetch_optional(db).await {
+        if let Some(row) = gsm8k_b {
+            let entry = scores_map.entry("GSM8K".to_string()).or_insert((None, None));
+            entry.1 = Some(row.accuracy * 100.0);
         }
     }
     
