@@ -146,12 +146,20 @@ impl Validate for HardwareConfig {
             });
         }
 
-        // Validate GPU memory
-        if self.gpu_memory_gb <= 0 {
+        // Validate GPU memory (0 is allowed for CPU-only systems)
+        if self.gpu_memory_gb < 0 {
             return Err(ValidationError::OutOfRange {
                 field: "gpu_memory_gb".to_string(),
                 value: self.gpu_memory_gb.to_string(),
-                range: "> 0".to_string(),
+                range: ">= 0".to_string(),
+            });
+        }
+        
+        // Check consistency: if GPU is "CPU Only", memory should be 0
+        if (self.gpu_model == "CPU Only" || self.gpu_model == "N/A") && self.gpu_memory_gb > 0 {
+            return Err(ValidationError::InvalidField {
+                field: "gpu_memory_gb".to_string(),
+                message: "GPU memory should be 0 for CPU-only systems".to_string(),
             });
         }
 

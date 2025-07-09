@@ -643,25 +643,22 @@ async fn upload_experiment(experiment_run: ExperimentRun, server: &str) -> Resul
         .send()
         .await?;
     
-    if response.status().is_success() {
-        let result: serde_json::Value = response.json().await?;
+    let result: llm_benchmark_types::UploadExperimentResponse = response.json().await?;
+    
+    if result.success {
         println!("✅ Upload successful!");
-        if let Some(test_run_id) = result.get("test_run_id").and_then(|v| v.as_str()) {
+        if let Some(test_run_id) = result.test_run_id {
             println!("Test run ID: {}", test_run_id);
-        } else {
-            println!("Response: {}", serde_json::to_string_pretty(&result)?);
         }
-        if let Some(warnings) = result.get("warnings").and_then(|w| w.as_array()) {
-            if !warnings.is_empty() {
-                println!("⚠️  Warnings:");
-                for warning in warnings {
-                    println!("  - {}", warning);
-                }
+        if !result.warnings.is_empty() {
+            println!("⚠️  Warnings:");
+            for warning in &result.warnings {
+                println!("  - {}", warning);
             }
         }
     } else {
-        let error_text = response.text().await?;
-        return Err(anyhow!("Upload failed: {}", error_text));
+        let error_msg = result.error.unwrap_or_else(|| "Unknown error".to_string());
+        return Err(anyhow!("Upload failed: {}", error_msg));
     }
     
     Ok(())
