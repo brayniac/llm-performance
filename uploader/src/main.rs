@@ -409,6 +409,11 @@ fn detect_cpu_arch(cpu_info: &str) -> &'static str {
 }
 
 fn parse_gpu_info(gpu_info: &str) -> (i32, String) {
+    // Handle CPU-only systems
+    if gpu_info.is_empty() || gpu_info == "" {
+        return (0, "CPU Only".to_string());
+    }
+    
     let gpu_lower = gpu_info.to_lowercase();
     
     // Clean up the GPU name - remove common prefixes
