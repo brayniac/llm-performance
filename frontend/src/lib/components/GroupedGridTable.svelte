@@ -37,11 +37,33 @@
     const parts = hardwareString.split(' / ');
     if (parts.length > 0) {
       const gpu = parts[0];
-      // Shorten common prefixes
+      
+      // If it's CPU Only, extract meaningful info from CPU part
+      if (gpu === 'CPU Only' && parts.length > 1) {
+        const cpuInfo = parts[1];
+        // Extract model name from CPU string - e.g., "AMD EPYC 4564P 16-Core Processor"
+        if (cpuInfo.includes('EPYC')) {
+          const match = cpuInfo.match(/EPYC\s+(\w+)/);
+          return match ? `EPYC ${match[1]}` : 'EPYC';
+        } else if (cpuInfo.includes('Xeon')) {
+          const match = cpuInfo.match(/Xeon\s+(\w+)/);
+          return match ? `Xeon ${match[1]}` : 'Xeon';
+        } else if (cpuInfo.includes('Ryzen')) {
+          const match = cpuInfo.match(/Ryzen\s+(\d+\s+\w+)/);
+          return match ? `Ryzen ${match[1]}` : 'Ryzen';
+        } else if (cpuInfo.includes('Core')) {
+          const match = cpuInfo.match(/Core\s+(i\d+[-\w]+)/);
+          return match ? match[1] : 'Intel Core';
+        }
+        // Fallback - just show CPU
+        return 'CPU';
+      }
+      
+      // Shorten common GPU prefixes
       return gpu
         .replace('NVIDIA GeForce ', '')
         .replace('NVIDIA ', '')
-        .replace('CPU Only', 'CPU')
+        .replace('AMD Radeon ', '')
         .trim();
     }
     return hardwareString;
