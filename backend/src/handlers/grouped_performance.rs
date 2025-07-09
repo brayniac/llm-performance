@@ -73,9 +73,10 @@ pub async fn get_grouped_performance(
                 tr.backend,
                 pm_speed.value as tokens_per_second,
                 pm_memory.value as memory_gb,
-                CONCAT(hp.gpu_model, ' / ', hp.cpu_arch) as hardware,
+                CONCAT(hp.gpu_model, ' / ', hp.cpu_model) as hardware,
                 hp.gpu_model,
                 hp.cpu_arch,
+                hp.cpu_model,
                 CASE 
                     WHEN $1 = 'mmlu' THEN (
                         SELECT AVG(ms.score) 
@@ -148,6 +149,7 @@ pub async fn get_grouped_performance(
         let quality_score: Option<f64> = row.get("quality_score");
         let gpu_model: String = row.get("gpu_model");
         let cpu_arch: String = row.get("cpu_arch");
+        let cpu_model: String = row.get("cpu_model");
         
         // Count total quantizations for this model (before filtering)
         *total_quants_by_model.entry(model_name.clone()).or_insert(0) += 1;
@@ -158,8 +160,8 @@ pub async fn get_grouped_performance(
         }
         
         // Also skip obvious generic entries
-        if gpu_model.contains("Generic") || cpu_arch.contains("Generic") || 
-           gpu_model.contains("Benchmark Only") || cpu_arch.contains("Benchmark Only") {
+        if gpu_model.contains("Generic") || cpu_model.contains("Generic") || 
+           gpu_model.contains("Benchmark Only") || cpu_model.contains("Benchmark Only") {
             continue;
         }
         
