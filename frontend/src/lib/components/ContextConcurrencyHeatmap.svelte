@@ -6,7 +6,7 @@
 
   export let heatmapData;
   export let quantization;
-  export let metric = 'speed'; // 'speed', 'ttft', or 'efficiency'
+  export let metric = 'speed'; // 'speed', 'ttft', 'tpot', 'itl', or 'efficiency'
   export let globalMin = null; // Optional: unified min across all quantizations
   export let globalMax = null; // Optional: unified max across all quantizations
 
@@ -39,7 +39,11 @@
       ? heatmapData.speed_data
       : metric === 'ttft'
         ? heatmapData.ttft_data
-        : heatmapData.efficiency_data;
+        : metric === 'tpot'
+          ? heatmapData.tpot_data
+          : metric === 'itl'
+            ? heatmapData.itl_data
+            : heatmapData.efficiency_data;
     const quantData = data[quantization];
 
     if (!quantData) {
@@ -92,7 +96,7 @@
 
     const option = {
       title: {
-        text: `${metric === 'speed' ? 'Token/s' : metric === 'ttft' ? 'TTFT (ms)' : 'Million Tokens/kWh'} - ${quantization}`,
+        text: `${metric === 'speed' ? 'Token/s' : metric === 'ttft' ? 'TTFT (ms)' : metric === 'tpot' ? 'TPOT (ms)' : metric === 'itl' ? 'ITL (ms)' : 'Million Tokens/kWh'} - ${quantization}`,
         left: 'center',
         textStyle: { color: c.title }
       },
@@ -102,8 +106,8 @@
           const concurrent = concurrentRequests[params.data[0]];
           const powerLimit = powerLimits[params.data[1]];
           const value = params.data[2];
-          const label = metric === 'speed' ? 'Speed' : metric === 'ttft' ? 'TTFT' : 'Efficiency';
-          const unit = metric === 'speed' ? ' tok/s' : metric === 'ttft' ? ' ms' : ' M tok/kWh';
+          const label = metric === 'speed' ? 'Speed' : metric === 'ttft' ? 'TTFT' : metric === 'tpot' ? 'TPOT' : metric === 'itl' ? 'ITL' : 'Efficiency';
+          const unit = metric === 'speed' ? ' tok/s' : metric === 'efficiency' ? ' M tok/kWh' : ' ms';
           return `Concurrent: ${concurrent}<br/>Power: ${powerLimit}W<br/>${label}: ${value}${unit}`;
         }
       },
@@ -145,13 +149,13 @@
         realtime: false,
         textStyle: { color: c.text },
         inRange: {
-          color: metric === 'ttft'
+          color: (metric === 'ttft' || metric === 'tpot' || metric === 'itl')
             ? ['#fde724', '#fdc518', '#fda30c', '#fd8100', '#f96f00', '#f45d00', '#ef4800', '#e63000', '#d91800', '#cc0000']
             : ['#440154', '#482878', '#3e4989', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde724']
         }
       },
       series: [{
-        name: metric === 'speed' ? 'Token/s' : metric === 'ttft' ? 'TTFT' : 'Million Tokens/kWh',
+        name: metric === 'speed' ? 'Token/s' : metric === 'ttft' ? 'TTFT' : metric === 'tpot' ? 'TPOT' : metric === 'itl' ? 'ITL' : 'Million Tokens/kWh',
         type: 'heatmap',
         data: heatmapValues,
         label: {

@@ -41,6 +41,8 @@ pub struct HeatmapData {
     // Map: quantization -> power_limit -> concurrent_requests -> metric
     pub speed_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>>,
     pub ttft_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>>,
+    pub tpot_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>>,
+    pub itl_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>>,
     pub efficiency_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>>,
 }
 
@@ -117,12 +119,18 @@ pub async fn get_model_hardware_analysis(
             rr.gpu_power_limit_watts as "gpu_power_limit_watts?",
             pm_speed.value as "tokens_per_second?",
             pm_ttft.value as "ttft?",
+            pm_tpot.value as "tpot?",
+            pm_itl.value as "itl?",
             pm_power.value as "gpu_power_watts?"
         FROM ranked_runs rr
         LEFT JOIN performance_metrics pm_speed
             ON rr.id = pm_speed.test_run_id AND pm_speed.metric_name = 'tokens_per_second'
         LEFT JOIN performance_metrics pm_ttft
             ON rr.id = pm_ttft.test_run_id AND pm_ttft.metric_name = 'ttft_p95_ms'
+        LEFT JOIN performance_metrics pm_tpot
+            ON rr.id = pm_tpot.test_run_id AND pm_tpot.metric_name = 'tpot_p95_ms'
+        LEFT JOIN performance_metrics pm_itl
+            ON rr.id = pm_itl.test_run_id AND pm_itl.metric_name = 'itl_p95_ms'
         LEFT JOIN performance_metrics pm_power
             ON rr.id = pm_power.test_run_id AND pm_power.metric_name = 'gpu_power_watts'
         WHERE rr.rn = 1
@@ -149,8 +157,8 @@ pub async fn get_model_hardware_analysis(
     }
 
     // Aggregate data by quantization
-    // Tuple: (power_limit, concurrent, speed, ttft, gpu_power, tokens_per_kwh)
-    let mut quant_map: HashMap<String, Vec<(i32, i32, f64, Option<f64>, Option<f64>, Option<f64>)>> = HashMap::new();
+    // Tuple: (power_limit, concurrent, speed, ttft, tpot, itl, gpu_power, tokens_per_kwh)
+    let mut quant_map: HashMap<String, Vec<(i32, i32, f64, Option<f64>, Option<f64>, Option<f64>, Option<f64>, Option<f64>)>> = HashMap::new();
     let mut all_power_limits = std::collections::BTreeSet::new();
     let mut all_concurrent_requests = std::collections::BTreeSet::new();
 
@@ -160,6 +168,8 @@ pub async fn get_model_hardware_analysis(
         let concurrent = run.concurrent_requests.unwrap_or(1);
         let speed = run.tokens_per_second.unwrap_or(0.0);
         let ttft = run.ttft;
+        let tpot = run.tpot;
+        let itl = run.itl;
         let gpu_power = run.gpu_power_watts;
 
         // Calculate tokens/kWh: (tokens/second × 3,600,000) / watts
@@ -179,7 +189,7 @@ pub async fn get_model_hardware_analysis(
         quant_map
             .entry(quant)
             .or_insert_with(Vec::new)
-            .push((power_limit, concurrent, speed, ttft, gpu_power, tokens_per_kwh));
+            .push((power_limit, concurrent, speed, ttft, tpot, itl, gpu_power, tokens_per_kwh));
     }
 
     // Get quality scores for each quantization
@@ -214,14 +224,14 @@ pub async fn get_model_hardware_analysis(
 
         let quality_score = if count > 0 { total_score / count as f64 } else { 0.0 };
 
-        let best_speed = runs.iter().map(|(_, _, speed, _, _, _)| *speed).fold(0.0_f64, f64::max);
+        let best_speed = runs.iter().map(|(_, _, speed, _, _, _, _, _)| *speed).fold(0.0_f64, f64::max);
         let best_ttft = runs
             .iter()
-            .filter_map(|(_, _, _, ttft, _, _)| *ttft)
+            .filter_map(|(_, _, _, ttft, _, _, _, _)| *ttft)
             .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let best_tokens_per_kwh = runs
             .iter()
-            .filter_map(|(_, _, _, _, _, tokens_kwh)| *tokens_kwh)
+            .filter_map(|(_, _, _, _, _, _, _, tokens_kwh)| *tokens_kwh)
             .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         quantization_summaries.push(QuantizationSummary {
@@ -243,14 +253,18 @@ pub async fn get_model_hardware_analysis(
     // Build heatmap data
     let mut speed_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
     let mut ttft_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
+    let mut tpot_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
+    let mut itl_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
     let mut efficiency_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
 
     for (quant, runs) in quant_map.iter() {
         let quant_speed_map = speed_data.entry(quant.clone()).or_insert_with(HashMap::new);
         let quant_ttft_map = ttft_data.entry(quant.clone()).or_insert_with(HashMap::new);
+        let quant_tpot_map = tpot_data.entry(quant.clone()).or_insert_with(HashMap::new);
+        let quant_itl_map = itl_data.entry(quant.clone()).or_insert_with(HashMap::new);
         let quant_efficiency_map = efficiency_data.entry(quant.clone()).or_insert_with(HashMap::new);
 
-        for (power_limit, concurrent, speed, ttft, _gpu_power, tokens_per_kwh) in runs {
+        for (power_limit, concurrent, speed, ttft, tpot, itl, _gpu_power, tokens_per_kwh) in runs {
             quant_speed_map
                 .entry(*power_limit)
                 .or_insert_with(HashMap::new)
@@ -261,6 +275,20 @@ pub async fn get_model_hardware_analysis(
                     .entry(*power_limit)
                     .or_insert_with(HashMap::new)
                     .insert(*concurrent, *ttft_val);
+            }
+
+            if let Some(tpot_val) = tpot {
+                quant_tpot_map
+                    .entry(*power_limit)
+                    .or_insert_with(HashMap::new)
+                    .insert(*concurrent, *tpot_val);
+            }
+
+            if let Some(itl_val) = itl {
+                quant_itl_map
+                    .entry(*power_limit)
+                    .or_insert_with(HashMap::new)
+                    .insert(*concurrent, *itl_val);
             }
 
             if let Some(efficiency_val) = tokens_per_kwh {
@@ -282,6 +310,8 @@ pub async fn get_model_hardware_analysis(
         concurrent_requests: all_concurrent_requests.into_iter().collect(),
         speed_data,
         ttft_data,
+        tpot_data,
+        itl_data,
         efficiency_data,
     };
 

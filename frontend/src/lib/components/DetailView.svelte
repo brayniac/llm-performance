@@ -17,6 +17,10 @@
   let speedGlobalMax = null;
   let ttftGlobalMin = null;
   let ttftGlobalMax = null;
+  let tpotGlobalMin = null;
+  let tpotGlobalMax = null;
+  let itlGlobalMin = null;
+  let itlGlobalMax = null;
   let efficiencyGlobalMin = null;
   let efficiencyGlobalMax = null;
 
@@ -24,10 +28,14 @@
   $: if (analysisData && analysisData.heatmap_data) {
     const speedData = analysisData.heatmap_data.speed_data;
     const ttftData = analysisData.heatmap_data.ttft_data;
+    const tpotData = analysisData.heatmap_data.tpot_data;
+    const itlData = analysisData.heatmap_data.itl_data;
     const efficiencyData = analysisData.heatmap_data.efficiency_data;
 
     let allSpeedValues = [];
     let allTtftValues = [];
+    let allTpotValues = [];
+    let allItlValues = [];
     let allEfficiencyValues = [];
 
     // Collect all values across all quantizations
@@ -51,6 +59,30 @@
       });
     });
 
+    if (tpotData) {
+      Object.values(tpotData).forEach(quantData => {
+        Object.values(quantData).forEach(powerLimitData => {
+          Object.values(powerLimitData).forEach(value => {
+            if (value !== undefined && value !== null) {
+              allTpotValues.push(value);
+            }
+          });
+        });
+      });
+    }
+
+    if (itlData) {
+      Object.values(itlData).forEach(quantData => {
+        Object.values(quantData).forEach(powerLimitData => {
+          Object.values(powerLimitData).forEach(value => {
+            if (value !== undefined && value !== null) {
+              allItlValues.push(value);
+            }
+          });
+        });
+      });
+    }
+
     if (efficiencyData) {
       Object.values(efficiencyData).forEach(quantData => {
         Object.values(quantData).forEach(powerLimitData => {
@@ -73,6 +105,18 @@
     if (allTtftValues.length > 0) {
       ttftGlobalMin = Math.min(...allTtftValues);
       ttftGlobalMax = Math.max(...allTtftValues);
+    }
+
+    // Calculate global min/max for tpot
+    if (allTpotValues.length > 0) {
+      tpotGlobalMin = Math.min(...allTpotValues);
+      tpotGlobalMax = Math.max(...allTpotValues);
+    }
+
+    // Calculate global min/max for itl
+    if (allItlValues.length > 0) {
+      itlGlobalMin = Math.min(...allItlValues);
+      itlGlobalMax = Math.max(...allItlValues);
     }
 
     // Calculate global min/max for efficiency
@@ -272,6 +316,28 @@
                     globalMax={ttftGlobalMax}
                   />
                 </div>
+                {#if analysisData.heatmap_data.tpot_data}
+                  <div class="heatmap-wrapper">
+                    <ContextConcurrencyHeatmap
+                      heatmapData={analysisData.heatmap_data}
+                      quantization={quant.quantization}
+                      metric="tpot"
+                      globalMin={tpotGlobalMin}
+                      globalMax={tpotGlobalMax}
+                    />
+                  </div>
+                {/if}
+                {#if analysisData.heatmap_data.itl_data}
+                  <div class="heatmap-wrapper">
+                    <ContextConcurrencyHeatmap
+                      heatmapData={analysisData.heatmap_data}
+                      quantization={quant.quantization}
+                      metric="itl"
+                      globalMin={itlGlobalMin}
+                      globalMax={itlGlobalMax}
+                    />
+                  </div>
+                {/if}
                 {#if analysisData.heatmap_data.efficiency_data}
                   <div class="heatmap-wrapper">
                     <ContextConcurrencyHeatmap
