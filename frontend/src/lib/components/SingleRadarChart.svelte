@@ -1,40 +1,45 @@
 <script>
   import { onMount } from 'svelte';
   import * as echarts from 'echarts';
-  
+  import { getChartColors } from '$lib/chartTheme.js';
+  import { theme } from '$lib/theme.js';
+
   export let categories;
   export let configName;
-  
+
   let chartContainer;
   let chart;
-  
+
   onMount(() => {
     chart = echarts.init(chartContainer);
-    
+
     return () => {
       if (chart) {
         chart.dispose();
       }
     };
   });
-  
-  $: if (chart && categories && categories.length > 0) {
+
+  $: if (chart && categories && categories.length > 0 && $theme) {
     updateChart();
   }
-  
+
   function updateChart() {
+    const c = getChartColors();
     const option = {
       title: {
         text: 'MMLU-Pro Category Scores',
         left: 'center',
         textStyle: {
           fontSize: 18,
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          color: c.title
         }
       },
       legend: {
         data: [configName],
-        bottom: 10
+        bottom: 10,
+        textStyle: { color: c.text }
       },
       radar: {
         indicator: categories.map(cat => ({
@@ -45,12 +50,15 @@
         radius: 140,
         nameGap: 15,
         splitNumber: 5,
+        axisName: {
+          color: c.text
+        },
         axisLabel: {
-          show: false  // Hide the percentage labels on spokes
+          show: false
         },
         splitLine: {
           lineStyle: {
-            color: '#e0e6ed'
+            color: c.grid
           }
         },
         splitArea: {
@@ -62,14 +70,14 @@
         data: [{
           value: categories.map(cat => cat.score),
           name: configName,
-          lineStyle: { color: '#2196f3', width: 3 },
-          areaStyle: { opacity: 0.2, color: '#2196f3' },
+          lineStyle: { color: c.accent, width: 3 },
+          areaStyle: { opacity: 0.2, color: c.accent },
           symbol: 'circle',
           symbolSize: 6
         }]
       }]
     };
-    
+
     chart.setOption(option);
   }
 </script>
@@ -80,12 +88,13 @@
 
 <style>
   .chart-section {
-    background: white;
+    background: var(--color-bg-primary);
     border-radius: 8px;
     padding: 1rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-primary);
   }
-  
+
   .chart {
     width: 100%;
     height: 450px;

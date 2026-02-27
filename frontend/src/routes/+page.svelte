@@ -12,7 +12,7 @@
     <h2>LLM Performance & Quality Comparison</h2>
     <p>Compare models across different quantization schemes, backends, and hardware configurations</p>
   </div>
-  
+
   <GroupedPerformanceGrid />
 </div>
 
@@ -20,17 +20,17 @@
   .hero {
     text-align: center;
     padding: 3rem 2rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--color-bg-hero);
+    color: #fafafa;
     margin-bottom: 2rem;
   }
-  
+
   .hero h2 {
     margin: 0 0 1rem 0;
     font-size: 2.5rem;
     font-weight: 300;
   }
-  
+
   .hero p {
     margin: 0;
     font-size: 1.25rem;

@@ -1,51 +1,51 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  
+
   export let model;
   export let benchmark;
   export let expanded = false;
   export let selectedConfigs = [];
-  
+
   const dispatch = createEventDispatcher();
-  
+
   // Check if the best hardware config is selected
   $: isSelected = selectedConfigs.includes(model.best_hardware.best_config.id);
-  
+
   function getShortModelName(fullName) {
     const parts = fullName.split('/');
     const modelPart = parts[parts.length - 1];
-    
+
     return modelPart
       .replace(/-v([0-9.]+)$/, ' v$1')
       .replace(/-([0-9]+B)/, ' $1')
       .replace(/-/g, ' ')
       .trim();
   }
-  
+
   function toggleExpansion() {
     dispatch('toggle');
   }
-  
+
   function viewDetails(id) {
     dispatch('viewDetails', { id });
   }
-  
+
   function handleCheckboxChange() {
     dispatch('selectionChanged', { configId: model.best_hardware.best_config.id });
   }
-  
+
   function getScoreColor(score) {
-    if (score >= 70) return '#28a745';
-    if (score >= 50) return '#ffc107';
-    return '#dc3545';
+    if (score >= 70) return 'var(--color-success)';
+    if (score >= 50) return 'var(--color-warning)';
+    return 'var(--color-danger)';
   }
-  
+
   function extractGpuModel(hardwareString) {
     // Extract GPU model from hardware string like "RTX 4090 / Zen2"
     const parts = hardwareString.split(' / ');
     if (parts.length > 0) {
       const gpu = parts[0];
-      
+
       // If it's CPU Only, extract meaningful info from CPU part
       if (gpu === 'CPU Only' && parts.length > 1) {
         const cpuInfo = parts[1];
@@ -66,7 +66,7 @@
         // Fallback - just show CPU
         return 'CPU';
       }
-      
+
       // Shorten common GPU prefixes
       return gpu
         .replace('NVIDIA GeForce ', '')
@@ -129,7 +129,7 @@
   </div>
 
   {#if benchmark !== 'none'}
-    <div class="score" style="color: {model.best_hardware.best_config.quality_score === 0 ? '#6c757d' : getScoreColor(model.best_hardware.best_config.quality_score)}">
+    <div class="score" style="color: {model.best_hardware.best_config.quality_score === 0 ? 'var(--color-text-tertiary)' : getScoreColor(model.best_hardware.best_config.quality_score)}">
       {model.best_hardware.best_config.quality_score === 0 ? 'Unknown' : model.best_hardware.best_config.quality_score.toFixed(1) + '%'}
     </div>
   {/if}
@@ -207,7 +207,7 @@
           {/if}
         </div>
         {#if benchmark !== 'none'}
-          <div style="color: {platform.best_config.quality_score === 0 ? '#6c757d' : getScoreColor(platform.best_config.quality_score)}">
+          <div style="color: {platform.best_config.quality_score === 0 ? 'var(--color-text-tertiary)' : getScoreColor(platform.best_config.quality_score)}">
             {platform.best_config.quality_score === 0 ? 'Unknown' : platform.best_config.quality_score.toFixed(1) + '%'}
           </div>
         {/if}
@@ -234,46 +234,46 @@
     grid-template-columns: 40px 2.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr;
     gap: 1rem;
     padding: 1rem;
-    border-bottom: 1px solid #e1e5e9;
+    border-bottom: 1px solid var(--color-border-primary);
     transition: background-color 0.2s;
   }
-  
+
   .model-row:hover {
-    background-color: #f8f9fa;
+    background-color: var(--color-bg-hover);
   }
-  
+
   .model-row.expanded {
-    background-color: #e3f2fd;
-    border-left: 4px solid #2196f3;
+    background-color: var(--color-bg-expanded);
+    border-left: 4px solid var(--color-accent);
   }
-  
+
   .model-row.selected {
-    background-color: #fff8e1;
+    background-color: var(--color-bg-selected);
   }
-  
+
   .checkbox-column {
     display: flex;
     align-items: center;
     justify-content: center;
   }
-  
+
   .checkbox-column input[type="checkbox"] {
     cursor: pointer;
     width: 18px;
     height: 18px;
   }
-  
+
   .checkbox-column input[type="checkbox"]:disabled {
     cursor: not-allowed;
     opacity: 0.5;
   }
-  
+
   .model-info {
     display: flex;
     gap: 0.75rem;
     align-items: flex-start;
   }
-  
+
   .expand-btn {
     background: none;
     border: none;
@@ -281,44 +281,44 @@
     cursor: pointer;
     padding: 0;
     width: 20px;
-    color: #6c757d;
+    color: var(--color-text-tertiary);
   }
-  
+
   .model-name {
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--color-text-primary);
     font-size: 1rem;
   }
-  
+
   .model-slug {
     font-size: 0.75rem;
-    color: #6c757d;
+    color: var(--color-text-tertiary);
     margin-top: 2px;
   }
-  
+
   .quant-count {
     font-size: 0.75rem;
-    color: #6c757d;
+    color: var(--color-text-tertiary);
     margin-top: 4px;
   }
-  
+
   .quantization {
     font-family: monospace;
     font-weight: 500;
   }
-  
+
   .score {
     font-weight: 600;
   }
-  
+
   .speed, .memory {
     font-variant-numeric: tabular-nums;
   }
-  
+
   .detail-btn {
     background: none;
-    border: 1px solid #2196f3;
-    color: #2196f3;
+    border: 1px solid var(--color-accent);
+    color: var(--color-accent);
     padding: 0.4rem 0.8rem;
     border-radius: 4px;
     cursor: pointer;
@@ -326,23 +326,23 @@
     font-weight: 500;
     transition: all 0.2s;
   }
-  
+
   .detail-btn:hover {
-    background: #2196f3;
-    color: white;
+    background: var(--color-accent);
+    color: var(--color-text-inverted);
   }
-  
+
   .detail-btn.small {
     padding: 0.3rem 0.6rem;
     font-size: 0.8rem;
   }
-  
+
   .expanded-content {
-    background: #f8f9fa;
-    border-bottom: 1px solid #e1e5e9;
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border-primary);
     padding: 1rem 1rem 1rem 3rem;
   }
-  
+
   .quant-header {
     display: grid;
     grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr;
@@ -350,8 +350,8 @@
     padding: 0.5rem 0;
     font-weight: 600;
     font-size: 0.9rem;
-    color: #6c757d;
-    border-bottom: 1px solid #e1e5e9;
+    color: var(--color-text-tertiary);
+    border-bottom: 1px solid var(--color-border-primary);
     margin-bottom: 0.5rem;
   }
 
@@ -373,32 +373,32 @@
 
   .platform-name {
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--color-text-primary);
   }
 
   .config-count {
     font-size: 0.7rem;
-    color: #6c757d;
+    color: var(--color-text-tertiary);
     margin-top: 2px;
   }
-  
+
   .quant-row:hover {
-    background-color: white;
+    background-color: var(--color-bg-primary);
   }
-  
+
   .unknown {
-    color: #6c757d;
+    color: var(--color-text-tertiary);
     font-style: italic;
   }
-  
+
   .platform {
-    color: #495057;
+    color: var(--color-text-secondary);
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  
+
   .platform.small {
     font-size: 0.9rem;
   }
@@ -415,8 +415,8 @@
     padding: 2px 6px;
     font-size: 0.7rem;
     font-weight: 500;
-    background-color: #e3f2fd;
-    color: #1976d2;
+    background-color: var(--color-accent-muted);
+    color: var(--color-accent-muted-text);
     border-radius: 3px;
     white-space: nowrap;
   }

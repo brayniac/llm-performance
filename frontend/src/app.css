@@ -1,3 +1,168 @@
+/* Design Tokens */
+:root {
+  color-scheme: light dark;
+
+  /* Backgrounds */
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f7f8fa;
+  --color-bg-tertiary: #eef0f3;
+  --color-bg-elevated: #ffffff;
+  --color-bg-hover: #f0f1f4;
+  --color-bg-selected: #f0f4ff;
+  --color-bg-expanded: #f0f4ff;
+  --color-bg-hero: #18181b;
+
+  /* Text */
+  --color-text-primary: #18181b;
+  --color-text-secondary: #52525b;
+  --color-text-tertiary: #71717a;
+  --color-text-inverted: #fafafa;
+
+  /* Borders */
+  --color-border-primary: #e4e4e7;
+  --color-border-secondary: #f1f1f4;
+  --color-border-focus: #3b82f6;
+
+  /* Accent */
+  --color-accent: #3b82f6;
+  --color-accent-hover: #2563eb;
+  --color-accent-muted: #dbeafe;
+  --color-accent-muted-text: #1d4ed8;
+
+  /* Semantic */
+  --color-success: #16a34a;
+  --color-warning: #ca8a04;
+  --color-danger: #dc2626;
+  --color-info: #0891b2;
+  --color-orange: #ea580c;
+
+  /* Error */
+  --color-error-bg: #fef2f2;
+  --color-error-border: #fecaca;
+
+  /* Series */
+  --color-series-a: #6366f1;
+  --color-series-b: #f43f5e;
+
+  /* Chart palette */
+  --color-chart-1: #6366f1;
+  --color-chart-2: #16a34a;
+  --color-chart-3: #ca8a04;
+  --color-chart-4: #f43f5e;
+  --color-chart-5: #0891b2;
+  --color-chart-6: #059669;
+  --color-chart-7: #ea580c;
+  --color-chart-8: #9333ea;
+  --color-chart-grid: #e4e4e7;
+  --color-chart-text: #52525b;
+  --color-chart-bg: #ffffff;
+  --color-chart-cell-border: #ffffff;
+
+  /* Grid */
+  --color-grid-header-bg: #27272a;
+  --color-grid-header-text: #fafafa;
+
+  /* Footer */
+  --color-footer-bg: #18181b;
+  --color-footer-text: #a1a1aa;
+  --color-footer-link: #7dd3fc;
+
+  /* Spinner */
+  --color-spinner-track: #e4e4e7;
+  --color-spinner-active: #3b82f6;
+
+  /* Input */
+  --color-input-bg: #ffffff;
+  --color-input-border: #d4d4d8;
+  --color-input-focus-ring: rgba(59, 130, 246, 0.15);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.10);
+}
+
+[data-theme="dark"] {
+  /* Backgrounds */
+  --color-bg-primary: #18181b;
+  --color-bg-secondary: #09090b;
+  --color-bg-tertiary: #27272a;
+  --color-bg-elevated: #1e1e22;
+  --color-bg-hover: #27272a;
+  --color-bg-selected: #1e1b4b;
+  --color-bg-expanded: #172554;
+  --color-bg-hero: #09090b;
+
+  /* Text */
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-tertiary: #71717a;
+  --color-text-inverted: #18181b;
+
+  /* Borders */
+  --color-border-primary: #3f3f46;
+  --color-border-secondary: #27272a;
+  --color-border-focus: #3b82f6;
+
+  /* Accent */
+  --color-accent: #60a5fa;
+  --color-accent-hover: #93c5fd;
+  --color-accent-muted: #1e3a5f;
+  --color-accent-muted-text: #93c5fd;
+
+  /* Semantic */
+  --color-success: #4ade80;
+  --color-warning: #facc15;
+  --color-danger: #f87171;
+  --color-info: #22d3ee;
+  --color-orange: #fb923c;
+
+  /* Error */
+  --color-error-bg: #450a0a;
+  --color-error-border: #7f1d1d;
+
+  /* Series */
+  --color-series-a: #818cf8;
+  --color-series-b: #fb7185;
+
+  /* Chart palette */
+  --color-chart-1: #818cf8;
+  --color-chart-2: #4ade80;
+  --color-chart-3: #facc15;
+  --color-chart-4: #fb7185;
+  --color-chart-5: #22d3ee;
+  --color-chart-6: #34d399;
+  --color-chart-7: #fb923c;
+  --color-chart-8: #c084fc;
+  --color-chart-grid: #3f3f46;
+  --color-chart-text: #a1a1aa;
+  --color-chart-bg: #18181b;
+  --color-chart-cell-border: #27272a;
+
+  /* Grid */
+  --color-grid-header-bg: #27272a;
+  --color-grid-header-text: #fafafa;
+
+  /* Footer */
+  --color-footer-bg: #09090b;
+  --color-footer-text: #71717a;
+  --color-footer-link: #7dd3fc;
+
+  /* Spinner */
+  --color-spinner-track: #3f3f46;
+  --color-spinner-active: #60a5fa;
+
+  /* Input */
+  --color-input-bg: #27272a;
+  --color-input-border: #3f3f46;
+  --color-input-focus-ring: rgba(96, 165, 250, 0.2);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
 /* Global styles */
 
 /* Reset and base styles */
@@ -9,8 +174,8 @@ body {
   margin: 0;
   padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: #f8f9fa;
-  color: #2c3e50;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
   line-height: 1.6;
 }
 
@@ -40,13 +205,13 @@ p {
 
 /* Links */
 a {
-  color: #2196f3;
+  color: var(--color-accent);
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 a:hover {
-  color: #1976d2;
+  color: var(--color-accent-hover);
   text-decoration: underline;
 }
 
@@ -70,7 +235,7 @@ button:disabled {
 input[type="range"] {
   width: 100%;
   height: 6px;
-  background: #ddd;
+  background: var(--color-input-border);
   border-radius: 3px;
   outline: none;
   -webkit-appearance: none;
@@ -81,7 +246,7 @@ input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 18px;
   height: 18px;
-  background: #2196f3;
+  background: var(--color-accent);
   border-radius: 50%;
   cursor: pointer;
 }
@@ -89,14 +254,14 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-moz-range-thumb {
   width: 18px;
   height: 18px;
-  background: #2196f3;
+  background: var(--color-accent);
   border-radius: 50%;
   cursor: pointer;
   border: none;
 }
 
 input[type="checkbox"] {
-  accent-color: #2196f3;
+  accent-color: var(--color-accent);
 }
 
 /* Utility classes */

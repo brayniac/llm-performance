@@ -1,34 +1,38 @@
 <script>
   import { onMount } from 'svelte';
   import * as echarts from 'echarts';
-  
+  import { getChartColors } from '$lib/chartTheme.js';
+  import { theme } from '$lib/theme.js';
+
   export let comparisonData;
-  
+
   let chartContainer;
   let chart;
-  
+
   onMount(() => {
     chart = echarts.init(chartContainer);
-    
+
     return () => {
       if (chart) {
         chart.dispose();
       }
     };
   });
-  
-  $: if (chart && comparisonData) {
+
+  $: if (chart && comparisonData && $theme) {
     updateChart();
   }
-  
+
   function updateChart() {
+    const c = getChartColors();
     const option = {
       title: {
         text: 'Performance Comparison',
         left: 'center',
         textStyle: {
           fontSize: 18,
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          color: c.title
         }
       },
       tooltip: {
@@ -37,14 +41,20 @@
       },
       legend: {
         data: [comparisonData.config_a.name, comparisonData.config_b.name],
-        bottom: 10
+        bottom: 10,
+        textStyle: { color: c.text }
       },
       xAxis: {
         type: 'category',
-        data: ['Generation Speed (tok/s)', 'Prompt Processing (tok/s)']
+        data: ['Generation Speed (tok/s)', 'Prompt Processing (tok/s)'],
+        axisLabel: { color: c.text },
+        axisLine: { lineStyle: { color: c.grid } }
       },
       yAxis: {
-        type: 'value'
+        type: 'value',
+        axisLabel: { color: c.text },
+        axisLine: { lineStyle: { color: c.grid } },
+        splitLine: { lineStyle: { color: c.grid } }
       },
       series: [
         {
@@ -54,7 +64,7 @@
             comparisonData.config_a.performance.speed,
             comparisonData.config_a.performance.prompt_speed
           ],
-          itemStyle: { color: '#5470c6' }
+          itemStyle: { color: c.seriesA }
         },
         {
           name: comparisonData.config_b.name,
@@ -63,11 +73,11 @@
             comparisonData.config_b.performance.speed,
             comparisonData.config_b.performance.prompt_speed
           ],
-          itemStyle: { color: '#ee6666' }
+          itemStyle: { color: c.seriesB }
         }
       ]
     };
-    
+
     chart.setOption(option);
   }
 </script>
@@ -78,12 +88,13 @@
 
 <style>
   .chart-section {
-    background: white;
+    background: var(--color-bg-primary);
     border-radius: 8px;
     padding: 1rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-primary);
   }
-  
+
   .chart {
     width: 100%;
     height: 400px;

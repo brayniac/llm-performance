@@ -119,11 +119,11 @@
       loading = false;
     }
   });
-  
+
   function formatPercentage(score) {
     return score.toFixed(1);
   }
-  
+
   function getScoreTier(score) {
     if (score >= 97) return 'a-plus';
     if (score >= 93) return 'a';
@@ -139,7 +139,7 @@
     if (score >= 60) return 'd-minus';
     return 'f';
   }
-  
+
   function getGradeLabel(score) {
     if (score >= 97) return 'A+';
     if (score >= 93) return 'A';
@@ -245,7 +245,7 @@
         <!-- Multi-Quantization Radar Chart -->
         <MultiQuantizationRadarChart analysisData={analysisData} />
 
-        <!-- Power Limit × Concurrency Heatmaps -->
+        <!-- Power Limit x Concurrency Heatmaps -->
         <div class="heatmaps-section">
           <h3>Performance Heatmaps</h3>
           <p class="heatmap-description">Explore how performance varies with GPU power limit and concurrency levels</p>
@@ -296,262 +296,265 @@
     margin: 0 auto;
     padding: 2rem;
   }
-  
+
   .loading {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 400px;
-    color: #6c757d;
+    color: var(--color-text-tertiary);
   }
-  
+
   .spinner {
     width: 40px;
     height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #2196f3;
+    border: 4px solid var(--color-spinner-track);
+    border-top: 4px solid var(--color-spinner-active);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 1rem;
   }
-  
+
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
-  
+
   .error {
     text-align: center;
     padding: 2rem;
-    color: #dc3545;
-    background: #f8d7da;
+    color: var(--color-danger);
+    background: var(--color-error-bg);
     border-radius: 8px;
-    border: 1px solid #f5c6cb;
+    border: 1px solid var(--color-error-border);
   }
-  
+
   .header {
     margin-bottom: 2rem;
   }
-  
+
   .config-header {
     text-align: center;
     padding: 2rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: var(--color-bg-hero);
+    color: #fafafa;
     border-radius: 12px;
   }
-  
+
   .config-title {
     margin: 0 0 0.5rem 0;
     font-size: 2.5rem;
     font-weight: 300;
   }
-  
+
   .config-subtitle {
     font-size: 1.25rem;
     opacity: 0.9;
     margin-bottom: 0.5rem;
   }
-  
+
   .test-date {
     font-size: 0.9rem;
     opacity: 0.8;
   }
-  
+
   .content-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 2rem;
     margin-bottom: 3rem;
   }
-  
+
   .score-card, .performance-card, .system-card {
-    background: white;
+    background: var(--color-bg-primary);
     border-radius: 8px;
     padding: 2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-primary);
   }
-  
+
   .score-card h3, .performance-card h3, .system-card h3 {
     margin: 0 0 1.5rem 0;
-    color: #2c3e50;
+    color: var(--color-text-primary);
     font-size: 1.1rem;
   }
-  
+
   .overall-score {
     font-size: 3rem;
     font-weight: bold;
     text-align: center;
     margin-bottom: 0.5rem;
   }
-  
-  .overall-score[data-tier="a-plus"], 
-  .overall-score[data-tier="a"], 
-  .overall-score[data-tier="a-minus"] { color: #28a745; }
-  .overall-score[data-tier="b-plus"], 
-  .overall-score[data-tier="b"], 
-  .overall-score[data-tier="b-minus"] { color: #17a2b8; }
-  .overall-score[data-tier="c-plus"], 
-  .overall-score[data-tier="c"], 
-  .overall-score[data-tier="c-minus"] { color: #ffc107; }
-  .overall-score[data-tier="d-plus"], 
-  .overall-score[data-tier="d"], 
-  .overall-score[data-tier="d-minus"] { color: #fd7e14; }
-  .overall-score[data-tier="f"] { color: #dc3545; }
-  
+
+  .overall-score[data-tier="a-plus"],
+  .overall-score[data-tier="a"],
+  .overall-score[data-tier="a-minus"] { color: var(--color-success); }
+  .overall-score[data-tier="b-plus"],
+  .overall-score[data-tier="b"],
+  .overall-score[data-tier="b-minus"] { color: var(--color-info); }
+  .overall-score[data-tier="c-plus"],
+  .overall-score[data-tier="c"],
+  .overall-score[data-tier="c-minus"] { color: var(--color-warning); }
+  .overall-score[data-tier="d-plus"],
+  .overall-score[data-tier="d"],
+  .overall-score[data-tier="d-minus"] { color: var(--color-orange); }
+  .overall-score[data-tier="f"] { color: var(--color-danger); }
+
   .metrics-grid {
     display: grid;
     gap: 1rem;
   }
-  
+
   .metric {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0.75rem;
-    background: #f8f9fa;
+    background: var(--color-bg-secondary);
     border-radius: 6px;
   }
-  
+
   .metric-label {
-    color: #6c757d;
+    color: var(--color-text-tertiary);
     font-weight: 500;
   }
-  
+
   .metric-value {
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--color-text-primary);
   }
-  
+
   .system-details {
     display: flex;
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .detail-row {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
     padding-bottom: 0.75rem;
-    border-bottom: 1px solid #f1f3f4;
+    border-bottom: 1px solid var(--color-border-secondary);
   }
-  
+
   .detail-row:last-child {
     border-bottom: none;
   }
-  
+
   .detail-row .label {
     font-weight: 500;
-    color: #6c757d;
+    color: var(--color-text-tertiary);
     min-width: 100px;
   }
 
   .detail-row .value {
-    color: #2c3e50;
+    color: var(--color-text-primary);
     text-align: right;
     font-family: monospace;
     font-size: 0.9rem;
   }
-  
+
   .chart-section {
     margin-bottom: 3rem;
   }
-  
+
   .categories-table {
-    background: white;
+    background: var(--color-bg-primary);
     border-radius: 8px;
     padding: 2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-primary);
   }
-  
+
   .categories-table h3 {
     margin: 0 0 1.5rem 0;
-    color: #2c3e50;
+    color: var(--color-text-primary);
   }
-  
+
   .table-container {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr;
     gap: 1rem;
   }
-  
+
   .table-header {
     display: contents;
     font-weight: bold;
-    color: #6c757d;
+    color: var(--color-text-tertiary);
   }
-  
+
   .table-header > div {
     padding-bottom: 0.75rem;
-    border-bottom: 2px solid #e1e5e9;
+    border-bottom: 2px solid var(--color-border-primary);
   }
-  
+
   .table-row {
     display: contents;
   }
-  
+
   .table-row > div {
     padding: 0.75rem 0;
-    border-bottom: 1px solid #f1f3f4;
+    border-bottom: 1px solid var(--color-border-secondary);
   }
-  
+
   .category-name {
     font-weight: 500;
-    color: #2c3e50;
+    color: var(--color-text-primary);
   }
-  
+
   .category-score {
     font-weight: 600;
   }
-  
-  .category-score[data-tier="a-plus"], 
-  .category-score[data-tier="a"], 
-  .category-score[data-tier="a-minus"] { color: #28a745; }
-  .category-score[data-tier="b-plus"], 
-  .category-score[data-tier="b"], 
-  .category-score[data-tier="b-minus"] { color: #17a2b8; }
-  .category-score[data-tier="c-plus"], 
-  .category-score[data-tier="c"], 
-  .category-score[data-tier="c-minus"] { color: #ffc107; }
-  .category-score[data-tier="d-plus"], 
-  .category-score[data-tier="d"], 
-  .category-score[data-tier="d-minus"] { color: #fd7e14; }
-  .category-score[data-tier="f"] { color: #dc3545; }
-  
-  
+
+  .category-score[data-tier="a-plus"],
+  .category-score[data-tier="a"],
+  .category-score[data-tier="a-minus"] { color: var(--color-success); }
+  .category-score[data-tier="b-plus"],
+  .category-score[data-tier="b"],
+  .category-score[data-tier="b-minus"] { color: var(--color-info); }
+  .category-score[data-tier="c-plus"],
+  .category-score[data-tier="c"],
+  .category-score[data-tier="c-minus"] { color: var(--color-warning); }
+  .category-score[data-tier="d-plus"],
+  .category-score[data-tier="d"],
+  .category-score[data-tier="d-minus"] { color: var(--color-orange); }
+  .category-score[data-tier="f"] { color: var(--color-danger); }
+
+
   .category-performance {
     font-weight: 500;
     font-size: 0.9rem;
   }
-  
-  .category-performance[data-tier="a-plus"], 
-  .category-performance[data-tier="a"], 
-  .category-performance[data-tier="a-minus"] { color: #28a745; }
-  .category-performance[data-tier="b-plus"], 
-  .category-performance[data-tier="b"], 
-  .category-performance[data-tier="b-minus"] { color: #17a2b8; }
-  .category-performance[data-tier="c-plus"], 
-  .category-performance[data-tier="c"], 
-  .category-performance[data-tier="c-minus"] { color: #ffc107; }
-  .category-performance[data-tier="d-plus"], 
-  .category-performance[data-tier="d"], 
-  .category-performance[data-tier="d-minus"] { color: #fd7e14; }
-  .category-performance[data-tier="f"] { color: #dc3545; }
-  
+
+  .category-performance[data-tier="a-plus"],
+  .category-performance[data-tier="a"],
+  .category-performance[data-tier="a-minus"] { color: var(--color-success); }
+  .category-performance[data-tier="b-plus"],
+  .category-performance[data-tier="b"],
+  .category-performance[data-tier="b-minus"] { color: var(--color-info); }
+  .category-performance[data-tier="c-plus"],
+  .category-performance[data-tier="c"],
+  .category-performance[data-tier="c-minus"] { color: var(--color-warning); }
+  .category-performance[data-tier="d-plus"],
+  .category-performance[data-tier="d"],
+  .category-performance[data-tier="d-minus"] { color: var(--color-orange); }
+  .category-performance[data-tier="f"] { color: var(--color-danger); }
+
   /* System Configuration Section */
   .system-config-section {
-    background: white;
+    background: var(--color-bg-primary);
     border-radius: 8px;
     padding: 2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-primary);
     margin-bottom: 3rem;
   }
 
   .system-config-section h2 {
     margin: 0 0 1.5rem 0;
-    color: #2c3e50;
+    color: var(--color-text-primary);
     font-size: 1.5rem;
   }
 
@@ -569,30 +572,31 @@
 
   .detail-item .label {
     font-weight: 600;
-    color: #6c757d;
+    color: var(--color-text-tertiary);
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
 
   .detail-item .value {
-    color: #2c3e50;
+    color: var(--color-text-primary);
     font-family: monospace;
     font-size: 0.95rem;
   }
 
   /* Quantization Comparison Section */
   .quantization-comparison {
-    background: white;
+    background: var(--color-bg-primary);
     border-radius: 8px;
     padding: 2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-primary);
     margin-bottom: 3rem;
   }
 
   .quantization-comparison h3 {
     margin: 0 0 1.5rem 0;
-    color: #2c3e50;
+    color: var(--color-text-primary);
   }
 
   .quant-grid {
@@ -602,22 +606,22 @@
   }
 
   .quant-card {
-    background: #f8f9fa;
+    background: var(--color-bg-secondary);
     border-radius: 8px;
     padding: 1.5rem;
-    border: 2px solid #e1e5e9;
+    border: 2px solid var(--color-border-primary);
     transition: all 0.2s;
   }
 
   .quant-card:hover {
-    border-color: #2196f3;
-    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.15);
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow-lg);
   }
 
   .quant-header {
     font-size: 1.25rem;
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--color-text-primary);
     margin-bottom: 1rem;
     font-family: monospace;
   }
@@ -635,30 +639,31 @@
   }
 
   .stat-label {
-    color: #6c757d;
+    color: var(--color-text-tertiary);
     font-size: 0.9rem;
   }
 
   .stat-value {
     font-weight: 600;
-    color: #2c3e50;
+    color: var(--color-text-primary);
     font-family: monospace;
   }
 
   .heatmaps-section {
-    background: white;
+    background: var(--color-bg-primary);
     border-radius: 8px;
     padding: 2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-primary);
   }
 
   .heatmaps-section h3 {
     margin: 0 0 0.5rem 0;
-    color: #2c3e50;
+    color: var(--color-text-primary);
   }
 
   .heatmap-description {
-    color: #6c757d;
+    color: var(--color-text-tertiary);
     margin-bottom: 2rem;
   }
 
@@ -671,11 +676,11 @@
   }
 
   .heatmap-group h4 {
-    color: #2c3e50;
+    color: var(--color-text-primary);
     font-size: 1.25rem;
     margin: 0 0 1rem 0;
     padding: 0.75rem;
-    background: #f8f9fa;
+    background: var(--color-bg-secondary);
     border-radius: 6px;
     font-family: monospace;
   }
@@ -693,10 +698,10 @@
   }
 
   .heatmap-wrapper {
-    background: #fafbfc;
+    background: var(--color-bg-secondary);
     border-radius: 8px;
     padding: 1rem;
-    border: 1px solid #e1e5e9;
+    border: 1px solid var(--color-border-primary);
   }
 
   /* Responsive design */
@@ -726,7 +731,7 @@
     .table-header > div,
     .table-row > div {
       padding: 0.5rem;
-      border-bottom: 1px solid #f1f3f4;
+      border-bottom: 1px solid var(--color-border-secondary);
     }
 
     .quant-grid {

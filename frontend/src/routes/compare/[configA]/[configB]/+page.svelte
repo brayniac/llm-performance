@@ -2,10 +2,10 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import ComparisonView from '$lib/components/ComparisonView.svelte';
-  
+
   $: configA = $page.params.configA;
   $: configB = $page.params.configB;
-  
+
   function goBack() {
     goto('/');
   }
@@ -22,7 +22,7 @@
       ← Back to Performance Grid
     </button>
   </div>
-  
+
   <ComparisonView {configA} {configB} />
 </div>
 
@@ -32,23 +32,23 @@
     margin: 0 auto;
     padding: 0 2rem;
   }
-  
+
   .breadcrumb {
     margin-bottom: 2rem;
   }
-  
+
   .back-btn {
     background: none;
-    border: 1px solid #6c757d;
-    color: #6c757d;
+    border: 1px solid var(--color-text-tertiary);
+    color: var(--color-text-tertiary);
     padding: 0.5rem 1rem;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
   }
-  
+
   .back-btn:hover {
-    background: #6c757d;
-    color: white;
+    background: var(--color-text-tertiary);
+    color: var(--color-text-inverted);
   }
 </style>

@@ -24,9 +24,9 @@
       </div>
     </div>
   </div>
-  
+
   <div class="vs">VS</div>
-  
+
   <div class="config-card config-b">
     <h3>{comparisonData.config_b.name}</h3>
     <div class="config-details">
@@ -58,52 +58,52 @@
     margin-bottom: 3rem;
     align-items: center;
   }
-  
+
   .config-card {
-    background: white;
-    border: 2px solid #e1e5e9;
+    background: var(--color-bg-primary);
+    border: 2px solid var(--color-border-primary);
     border-radius: 12px;
     padding: 1.5rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
   }
-  
+
   .config-card.config-a {
-    border-color: #5470c6;
+    border-color: var(--color-series-a);
   }
-  
+
   .config-card.config-b {
-    border-color: #ee6666;
+    border-color: var(--color-series-b);
   }
-  
+
   .config-card h3 {
     margin: 0 0 1rem 0;
-    color: #2c3e50;
+    color: var(--color-text-primary);
     font-size: 1.25rem;
   }
-  
+
   .config-details {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .detail {
     display: flex;
     justify-content: space-between;
   }
-  
+
   .detail .label {
     font-weight: 500;
-    color: #6c757d;
+    color: var(--color-text-tertiary);
   }
-  
+
   .detail .value {
     font-family: monospace;
     font-weight: 600;
   }
-  
+
   .vs {
-    background: #f8f9fa;
+    background: var(--color-bg-tertiary);
     border-radius: 50%;
     width: 60px;
     height: 60px;
@@ -112,7 +112,7 @@
     justify-content: center;
     font-weight: bold;
     font-size: 1.25rem;
-    color: #6c757d;
+    color: var(--color-text-tertiary);
     justify-self: center;
   }
 </style>

@@ -1,6 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import * as echarts from 'echarts';
+  import { getChartColors } from '$lib/chartTheme.js';
+  import { theme } from '$lib/theme.js';
 
   export let heatmapData;
   export let quantization;
@@ -24,12 +26,14 @@
     };
   });
 
-  $: if (chart && heatmapData) {
+  $: if (chart && heatmapData && $theme) {
     renderChart();
   }
 
   function renderChart() {
     if (!chart || !heatmapData) return;
+
+    const c = getChartColors();
 
     const data = metric === 'speed'
       ? heatmapData.speed_data
@@ -44,7 +48,6 @@
     }
 
     // Prepare heatmap data: [concurrency_index, power_limit_index, value]
-    // Only include data points that actually exist (no default to 0)
     const heatmapValues = [];
     const powerLimits = heatmapData.power_limits;
     const concurrentRequests = heatmapData.concurrent_requests;
@@ -53,14 +56,12 @@
       powerLimits.forEach((powerLimit, powerIdx) => {
         const value = quantData[powerLimit]?.[concurrent];
         if (value !== undefined && value !== null) {
-          // Scale efficiency values to millions for display
           const displayValue = metric === 'efficiency' ? value / 1000000 : value;
           heatmapValues.push([concurrentIdx, powerIdx, displayValue.toFixed(2)]);
         }
       });
     });
 
-    // Calculate proper min/max for visualMap
     if (heatmapValues.length === 0) {
       console.warn('No data points to display in heatmap');
       return;
@@ -68,23 +69,18 @@
 
     let visualMapMin, visualMapMax;
 
-    // Use global scale if provided (for unified comparison across quantizations)
     if (globalMin !== null && globalMax !== null) {
       visualMapMin = globalMin;
       visualMapMax = globalMax;
     } else {
-      // Fall back to per-quantization scale calculation
       const values = heatmapValues.map(v => parseFloat(v[2]));
       const maxValue = Math.max(...values);
       const minValue = Math.min(...values);
 
-      // For single values or small ranges, create a better scale
       if (maxValue === minValue) {
-        // Single value - create range around it
         visualMapMin = maxValue * 0.8;
         visualMapMax = maxValue * 1.2;
       } else if (maxValue - minValue < maxValue * 0.1) {
-        // Small range - expand it
         const avg = (maxValue + minValue) / 2;
         visualMapMin = avg * 0.8;
         visualMapMax = avg * 1.2;
@@ -98,6 +94,7 @@
       title: {
         text: `${metric === 'speed' ? 'Token/s' : metric === 'ttft' ? 'TTFT (ms)' : 'Million Tokens/kWh'} - ${quantization}`,
         left: 'center',
+        textStyle: { color: c.title }
       },
       tooltip: {
         position: 'top',
@@ -107,7 +104,6 @@
           const value = params.data[2];
           const label = metric === 'speed' ? 'Speed' : metric === 'ttft' ? 'TTFT' : 'Efficiency';
           const unit = metric === 'speed' ? ' tok/s' : metric === 'ttft' ? ' ms' : ' M tok/kWh';
-          // Value is already scaled to millions for efficiency
           return `Concurrent: ${concurrent}<br/>Power: ${powerLimit}W<br/>${label}: ${value}${unit}`;
         }
       },
@@ -123,6 +119,8 @@
         name: 'Concurrent Requests',
         nameLocation: 'middle',
         nameGap: 30,
+        axisLabel: { color: c.text },
+        axisLine: { lineStyle: { color: c.grid } },
         splitArea: {
           show: true
         }
@@ -133,6 +131,8 @@
         name: 'GPU Power Limit',
         nameLocation: 'middle',
         nameGap: 50,
+        axisLabel: { color: c.text },
+        axisLine: { lineStyle: { color: c.grid } },
         splitArea: {
           show: true
         }
@@ -143,13 +143,11 @@
         max: visualMapMax,
         calculable: false,
         realtime: false,
+        textStyle: { color: c.text },
         inRange: {
           color: metric === 'ttft'
-            ? // Yellow-Orange-Red for latency: Yellow (low/good) -> Red (high/bad)
-              // Starting with viridis yellow (#fde724) for consistency
-              ['#fde724', '#fdc518', '#fda30c', '#fd8100', '#f96f00', '#f45d00', '#ef4800', '#e63000', '#d91800', '#cc0000']
-            : // Viridis for speed and efficiency: Dark purple (low/bad) -> Yellow (high/good)
-              ['#440154', '#482878', '#3e4989', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde724']
+            ? ['#fde724', '#fdc518', '#fda30c', '#fd8100', '#f96f00', '#f45d00', '#ef4800', '#e63000', '#d91800', '#cc0000']
+            : ['#440154', '#482878', '#3e4989', '#31688e', '#26828e', '#1f9e89', '#35b779', '#6ece58', '#b5de2b', '#fde724']
         }
       },
       series: [{
@@ -163,7 +161,7 @@
         },
         itemStyle: {
           borderWidth: 2,
-          borderColor: '#fff'
+          borderColor: c.cellBorder
         },
         emphasis: {
           itemStyle: {

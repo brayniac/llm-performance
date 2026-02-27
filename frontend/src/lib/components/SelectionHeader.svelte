@@ -1,10 +1,10 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  
+
   export let selectedConfigs = [];
-  
+
   const dispatch = createEventDispatcher();
-  
+
   function handleCompare() {
     dispatch('compare', { selectedConfigs });
   }
@@ -14,7 +14,7 @@
   <div class="selection-count">
     {selectedConfigs.length}/2 selected for comparison
   </div>
-  
+
   {#if selectedConfigs.length === 2}
     <button on:click={handleCompare} class="compare-btn">
       Compare Quality →
@@ -29,17 +29,17 @@
     align-items: center;
     padding: 1rem 0;
     font-weight: 500;
-    border-bottom: 1px solid #e1e5e9;
+    border-bottom: 1px solid var(--color-border-primary);
     margin-bottom: 1rem;
   }
-  
+
   .selection-count {
-    color: #6c757d;
+    color: var(--color-text-tertiary);
   }
-  
+
   .compare-btn {
-    background: #2196f3;
-    color: white;
+    background: var(--color-accent);
+    color: var(--color-text-inverted);
     border: none;
     padding: 0.5rem 1rem;
     border-radius: 4px;
@@ -47,8 +47,8 @@
     font-weight: 500;
     transition: background-color 0.2s;
   }
-  
+
   .compare-btn:hover {
-    background: #1976d2;
+    background: var(--color-accent-hover);
   }
 </style>

@@ -1,52 +1,52 @@
 <script>
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  
+
   import PerformanceFilters from './PerformanceFilters.svelte';
   import GridTable from './GridTable.svelte';
   import SelectionHeader from './SelectionHeader.svelte';
-  
+
   let configurations = [];
   let filteredConfigs = [];
   let selectedConfigs = [];
   let loading = true;
-  
+
   // Filter values (these get passed to PerformanceFilters)
   let maxMemory = 32;
   let minSpeed = 0;
   let selectedBackends = ['llama.cpp', 'vllm'];
   let selectedHardware = ['all'];
-  
+
   onMount(async () => {
     const response = await fetch('/api/performance-grid');
     configurations = await response.json();
     loading = false;
   });
-  
+
   // When filters change, update the filtered list
   function handleFiltersChanged(event) {
     const filters = event.detail;
-    
+
     filteredConfigs = configurations.filter(config => {
       return config.memory_gb <= filters.maxMemory &&
              config.tokens_per_second >= filters.minSpeed &&
              filters.selectedBackends.includes(config.backend) &&
-             (filters.selectedHardware.includes('all') || 
+             (filters.selectedHardware.includes('all') ||
               filters.selectedHardware.includes(config.hardware_type));
     });
   }
-  
+
   // When selection changes in the grid
   function handleSelectionChanged(event) {
     const { configId } = event.detail;
-    
+
     if (selectedConfigs.includes(configId)) {
       selectedConfigs = selectedConfigs.filter(id => id !== configId);
     } else if (selectedConfigs.length < 2) {
       selectedConfigs = [...selectedConfigs, configId];
     }
   }
-  
+
   // When user clicks compare button
   function handleCompare(event) {
     const { selectedConfigs: configs } = event.detail;
@@ -54,17 +54,17 @@
       goto(`/compare/${configs[0]}/${configs[1]}`);
     }
   }
-  
+
   // Run initial filter when data loads
   $: if (configurations.length > 0) {
-    handleFiltersChanged({ 
+    handleFiltersChanged({
       detail: { maxMemory, minSpeed, selectedBackends, selectedHardware }
     });
   }
 </script>
 
 <div class="performance-grid">
-  <PerformanceFilters 
+  <PerformanceFilters
     bind:maxMemory
     bind:minSpeed
     bind:selectedBackends
@@ -76,12 +76,12 @@
     <div class="loading">Loading performance data...</div>
   {:else}
     <div class="grid-container">
-      <SelectionHeader 
+      <SelectionHeader
         {selectedConfigs}
         on:compare={handleCompare}
       />
-      
-      <GridTable 
+
+      <GridTable
         configurations={filteredConfigs}
         {selectedConfigs}
         on:selectionChanged={handleSelectionChanged}
@@ -96,18 +96,19 @@
     margin: 0 auto;
     padding: 2rem;
   }
-  
+
   .loading {
     text-align: center;
     padding: 3rem;
-    color: #6c757d;
+    color: var(--color-text-tertiary);
     font-size: 1.1rem;
   }
-  
+
   .grid-container {
-    background: white;
+    background: var(--color-bg-primary);
     border-radius: 8px;
     padding: 1rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-primary);
   }
 </style>

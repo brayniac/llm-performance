@@ -1,15 +1,17 @@
 <script>
   import { onMount } from 'svelte';
   import * as echarts from 'echarts';
-  
+  import { getChartColors } from '$lib/chartTheme.js';
+  import { theme } from '$lib/theme.js';
+
   export let comparisonData;
-  
+
   let chartContainer;
   let chart;
-  
+
   onMount(() => {
     chart = echarts.init(chartContainer);
-    
+
     // Cleanup on component destroy
     return () => {
       if (chart) {
@@ -17,25 +19,28 @@
       }
     };
   });
-  
-  // Update chart when data changes
-  $: if (chart && comparisonData) {
+
+  // Update chart when data or theme changes
+  $: if (chart && comparisonData && $theme) {
     updateChart();
   }
-  
+
   function updateChart() {
+    const c = getChartColors();
     const option = {
       title: {
         text: 'MMLU-Pro Category Scores',
         left: 'center',
         textStyle: {
           fontSize: 18,
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          color: c.title
         }
       },
       legend: {
         data: [comparisonData.config_a.name, comparisonData.config_b.name],
-        bottom: 10
+        bottom: 10,
+        textStyle: { color: c.text }
       },
       radar: {
         indicator: comparisonData.categories.map(cat => ({
@@ -46,12 +51,15 @@
         radius: 120,
         nameGap: 15,
         splitNumber: 5,
+        axisName: {
+          color: c.text
+        },
         axisLabel: {
-          show: false  // Hide the percentage labels on spokes
+          show: false
         },
         splitLine: {
           lineStyle: {
-            color: '#e0e6ed'
+            color: c.grid
           }
         },
         splitArea: {
@@ -64,21 +72,21 @@
           {
             value: comparisonData.categories.map(cat => cat.score_a),
             name: comparisonData.config_a.name,
-            lineStyle: { color: '#5470c6', width: 3 },
-            areaStyle: { opacity: 0.1, color: '#5470c6' },
-            itemStyle: { color: '#5470c6' }
+            lineStyle: { color: c.seriesA, width: 3 },
+            areaStyle: { opacity: 0.1, color: c.seriesA },
+            itemStyle: { color: c.seriesA }
           },
           {
             value: comparisonData.categories.map(cat => cat.score_b),
             name: comparisonData.config_b.name,
-            lineStyle: { color: '#ee6666', width: 3 },
-            areaStyle: { opacity: 0.1, color: '#ee6666' },
-            itemStyle: { color: '#ee6666' }
+            lineStyle: { color: c.seriesB, width: 3 },
+            areaStyle: { opacity: 0.1, color: c.seriesB },
+            itemStyle: { color: c.seriesB }
           }
         ]
       }]
     };
-    
+
     chart.setOption(option);
   }
 </script>
@@ -89,12 +97,13 @@
 
 <style>
   .chart-section {
-    background: white;
+    background: var(--color-bg-primary);
     border-radius: 8px;
     padding: 1rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-primary);
   }
-  
+
   .chart {
     width: 100%;
     height: 400px;

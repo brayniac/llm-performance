@@ -1,23 +1,13 @@
 <script>
   import { onMount } from 'svelte';
   import * as echarts from 'echarts';
+  import { getChartColors } from '$lib/chartTheme.js';
+  import { theme } from '$lib/theme.js';
 
   export let analysisData;
 
   let chartContainer;
   let chart;
-
-  // Color palette for different quantizations
-  const colors = [
-    '#5470c6', // blue
-    '#91cc75', // green
-    '#fac858', // yellow
-    '#ee6666', // red
-    '#73c0de', // cyan
-    '#3ba272', // dark green
-    '#fc8452', // orange
-    '#9a60b4', // purple
-  ];
 
   onMount(() => {
     if (chartContainer) {
@@ -32,12 +22,14 @@
     };
   });
 
-  // Update chart when data changes
-  $: if (chart && analysisData && analysisData.quantizations) {
+  // Update chart when data or theme changes
+  $: if (chart && analysisData && analysisData.quantizations && $theme) {
     updateChart();
   }
 
   function updateChart() {
+    const c = getChartColors();
+
     // Get all unique categories across all quantizations
     const categorySet = new Set();
     analysisData.quantizations.forEach(quant => {
@@ -54,7 +46,6 @@
     );
 
     if (quantsWithScores.length === 0) {
-      // No data to display
       return;
     }
 
@@ -64,13 +55,15 @@
         left: 'center',
         textStyle: {
           fontSize: 18,
-          fontWeight: 'bold'
+          fontWeight: 'bold',
+          color: c.title
         }
       },
       legend: {
         data: quantsWithScores.map(quant => quant.quantization),
         bottom: 10,
-        type: 'scroll'
+        type: 'scroll',
+        textStyle: { color: c.text }
       },
       tooltip: {
         trigger: 'item',
@@ -96,12 +89,15 @@
         radius: 120,
         nameGap: 15,
         splitNumber: 5,
+        axisName: {
+          color: c.text
+        },
         axisLabel: {
-          show: false  // Hide the percentage labels on spokes
+          show: false
         },
         splitLine: {
           lineStyle: {
-            color: '#e0e6ed'
+            color: c.grid
           }
         },
         splitArea: {
@@ -111,7 +107,7 @@
       series: [{
         type: 'radar',
         data: quantsWithScores.map((quant, idx) => {
-          const color = colors[idx % colors.length];
+          const color = c.palette[idx % c.palette.length];
           return {
             value: categories.map(cat => quant.category_scores[cat] || 0),
             name: quant.quantization,
@@ -140,10 +136,11 @@
 
 <style>
   .chart-section {
-    background: white;
+    background: var(--color-bg-primary);
     border-radius: 8px;
     padding: 1rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-border-primary);
     margin-bottom: 2rem;
   }
 
@@ -155,7 +152,7 @@
   .no-data {
     padding: 3rem 2rem;
     text-align: center;
-    color: #666;
+    color: var(--color-text-tertiary);
   }
 
   .no-data p {
@@ -164,6 +161,6 @@
 
   .no-data .hint {
     font-size: 0.9rem;
-    color: #999;
+    color: var(--color-text-tertiary);
   }
 </style>
