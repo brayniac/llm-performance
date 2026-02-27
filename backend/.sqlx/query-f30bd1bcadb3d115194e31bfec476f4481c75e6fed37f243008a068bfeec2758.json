@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, test_run_id, pass_at_1, pass_at_10, pass_at_100, total_problems, timestamp, context, created_at \n         FROM humaneval_scores WHERE test_run_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "test_run_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "pass_at_1",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "pass_at_10",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "pass_at_100",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 5,
+        "name": "total_problems",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 6,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "context",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "f30bd1bcadb3d115194e31bfec476f4481c75e6fed37f243008a068bfeec2758"
+}

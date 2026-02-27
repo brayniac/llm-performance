@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id FROM hardware_profiles\n        WHERE gpu_model = $1 AND cpu_model = $2 AND cpu_arch = $3 \n              AND ((ram_gb IS NULL AND $4::INT IS NULL) OR ram_gb = $4)\n              AND ((ram_type IS NULL AND $5::TEXT IS NULL) OR ram_type = $5)\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0298f2c7d213f51829016589278092fcfd0c785cc3b78635713096e9c7ad2563"
+}

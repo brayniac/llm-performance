@@ -9,6 +9,11 @@ use crate::{HardwareConfig, PerformanceMetric, BenchmarkScoreType, BenchmarkScor
 /// A complete experiment run containing all benchmark data
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ExperimentRun {
+    /// Unique identifier for this experiment run
+    /// For SystemsLab imports, this is the experiment ID
+    /// For local uploads, generate a UUID v7 and persist it
+    pub id: Uuid,
+
     /// Name of the model being tested (e.g., "Mistral Small 3.2 24B")
     pub model_name: String,
 
@@ -39,6 +44,26 @@ pub struct ExperimentRun {
     /// Status of the experiment run
     #[serde(default = "default_status")]
     pub status: ExperimentStatus,
+
+    /// Test configuration: number of concurrent requests
+    #[serde(default)]
+    pub concurrent_requests: Option<i32>,
+
+    /// Test configuration: maximum context length in tokens
+    #[serde(default)]
+    pub max_context_length: Option<i32>,
+
+    /// Test configuration: load pattern (e.g., "Concurrent", "QPS", "Burst")
+    #[serde(default)]
+    pub load_pattern: Option<String>,
+
+    /// Test configuration: dataset name (e.g., "OpenOrca", "ShareGPT")
+    #[serde(default)]
+    pub dataset_name: Option<String>,
+
+    /// GPU power limit in watts (e.g., 300 for limited RTX 4090)
+    #[serde(default)]
+    pub gpu_power_limit_watts: Option<i32>,
 }
 
 /// Status of an experiment run
@@ -72,6 +97,7 @@ pub struct ExperimentSummary {
 impl ExperimentRun {
     /// Create a new experiment run with the current timestamp
     pub fn new(
+        id: Uuid,
         model_name: String,
         quantization: String,
         backend: String,
@@ -79,6 +105,7 @@ impl ExperimentRun {
         hardware_config: HardwareConfig,
     ) -> Self {
         Self {
+            id,
             model_name,
             quantization,
             backend,
@@ -89,6 +116,11 @@ impl ExperimentRun {
             timestamp: Utc::now(),
             notes: None,
             status: ExperimentStatus::Pending,
+            concurrent_requests: None,
+            max_context_length: None,
+            load_pattern: None,
+            dataset_name: None,
+            gpu_power_limit_watts: None,
         }
     }
 

@@ -7,7 +7,15 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
-        changeOrigin: true
+        changeOrigin: true,
+        rewrite: (path) => path,
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            // Preserve the original encoded path
+            const originalPath = req.url || '';
+            proxyReq.path = originalPath;
+          });
+        }
       }
     }
   }

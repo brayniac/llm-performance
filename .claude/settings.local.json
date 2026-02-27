@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlx migrate:*)",
+      "Bash(DATABASE_URL=\"postgres://benchmark_user:your_secure_password@localhost/llm_benchmarks\" sqlx migrate:*)",
+      "Bash(DATABASE_URL=\"postgres://benchmark_user:your_secure_password@localhost/llm_benchmarks\" psql:*)",
+      "Bash(PGPASSWORD=\"your_secure_password\" psql:*)",
+      "Bash(cat:*)",
+      "Bash(sha256sum:*)",
+      "Bash(cargo run:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

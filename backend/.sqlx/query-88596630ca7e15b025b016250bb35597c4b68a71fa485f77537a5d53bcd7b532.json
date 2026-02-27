@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO hellaswag_scores (test_run_id, accuracy, total_questions, correct_answers, timestamp, context) \n                 VALUES ($1, $2, $3, $4, $5, $6)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Float8",
+        "Int4",
+        "Int4",
+        "Timestamptz",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "88596630ca7e15b025b016250bb35597c4b68a71fa485f77537a5d53bcd7b532"
+}

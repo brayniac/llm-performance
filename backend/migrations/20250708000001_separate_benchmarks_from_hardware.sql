@@ -86,14 +86,14 @@ CREATE TABLE IF NOT EXISTS generic_benchmark_scores_v2 (
 );
 
 -- Step 3: Create indexes for performance
-CREATE INDEX idx_model_variants_model_name ON model_variants(model_name);
-CREATE INDEX idx_model_variants_quantization ON model_variants(quantization);
-CREATE INDEX idx_mmlu_scores_v2_model_variant ON mmlu_scores_v2(model_variant_id);
-CREATE INDEX idx_gsm8k_scores_v2_model_variant ON gsm8k_scores_v2(model_variant_id);
-CREATE INDEX idx_humaneval_scores_v2_model_variant ON humaneval_scores_v2(model_variant_id);
-CREATE INDEX idx_hellaswag_scores_v2_model_variant ON hellaswag_scores_v2(model_variant_id);
-CREATE INDEX idx_truthfulqa_scores_v2_model_variant ON truthfulqa_scores_v2(model_variant_id);
-CREATE INDEX idx_generic_benchmark_scores_v2_model_variant ON generic_benchmark_scores_v2(model_variant_id);
+CREATE INDEX IF NOT EXISTS idx_model_variants_model_name ON model_variants(model_name);
+CREATE INDEX IF NOT EXISTS idx_model_variants_quantization ON model_variants(quantization);
+CREATE INDEX IF NOT EXISTS idx_mmlu_scores_v2_model_variant ON mmlu_scores_v2(model_variant_id);
+CREATE INDEX IF NOT EXISTS idx_gsm8k_scores_v2_model_variant ON gsm8k_scores_v2(model_variant_id);
+CREATE INDEX IF NOT EXISTS idx_humaneval_scores_v2_model_variant ON humaneval_scores_v2(model_variant_id);
+CREATE INDEX IF NOT EXISTS idx_hellaswag_scores_v2_model_variant ON hellaswag_scores_v2(model_variant_id);
+CREATE INDEX IF NOT EXISTS idx_truthfulqa_scores_v2_model_variant ON truthfulqa_scores_v2(model_variant_id);
+CREATE INDEX IF NOT EXISTS idx_generic_benchmark_scores_v2_model_variant ON generic_benchmark_scores_v2(model_variant_id);
 
 -- Step 4: Migrate existing data
 -- First, populate model_variants from existing test_runs
@@ -120,7 +120,7 @@ WITH latest_mmlu AS (
     ORDER BY tr.model_name, tr.quantization, ms.category, ms.timestamp DESC
 )
 INSERT INTO mmlu_scores_v2 (model_variant_id, category, score, total_questions, correct_answers, timestamp, context)
-SELECT 
+SELECT
     mv.id,
     lm.category,
     lm.score,
@@ -129,7 +129,8 @@ SELECT
     lm.timestamp,
     lm.context
 FROM latest_mmlu lm
-JOIN model_variants mv ON mv.model_name = lm.model_name AND mv.quantization = lm.quantization;
+JOIN model_variants mv ON mv.model_name = lm.model_name AND mv.quantization = lm.quantization
+ON CONFLICT (model_variant_id, category) DO NOTHING;
 
 -- Step 6: Migrate GSM8K scores (take latest per model/quant)
 WITH latest_gsm8k AS (
@@ -146,7 +147,7 @@ WITH latest_gsm8k AS (
     ORDER BY tr.model_name, tr.quantization, gs.timestamp DESC
 )
 INSERT INTO gsm8k_scores_v2 (model_variant_id, problems_solved, total_problems, accuracy, timestamp, context)
-SELECT 
+SELECT
     mv.id,
     lg.problems_solved,
     lg.total_problems,
@@ -154,7 +155,8 @@ SELECT
     lg.timestamp,
     lg.context
 FROM latest_gsm8k lg
-JOIN model_variants mv ON mv.model_name = lg.model_name AND mv.quantization = lg.quantization;
+JOIN model_variants mv ON mv.model_name = lg.model_name AND mv.quantization = lg.quantization
+ON CONFLICT (model_variant_id) DO NOTHING;
 
 -- Step 7: Migrate HumanEval scores (take latest per model/quant)
 WITH latest_humaneval AS (
@@ -171,7 +173,7 @@ WITH latest_humaneval AS (
     ORDER BY tr.model_name, tr.quantization, he.timestamp DESC
 )
 INSERT INTO humaneval_scores_v2 (model_variant_id, pass_at_1, pass_at_10, pass_at_100, timestamp, context)
-SELECT 
+SELECT
     mv.id,
     lh.pass_at_1,
     lh.pass_at_10,
@@ -179,7 +181,8 @@ SELECT
     lh.timestamp,
     lh.context
 FROM latest_humaneval lh
-JOIN model_variants mv ON mv.model_name = lh.model_name AND mv.quantization = lh.quantization;
+JOIN model_variants mv ON mv.model_name = lh.model_name AND mv.quantization = lh.quantization
+ON CONFLICT (model_variant_id) DO NOTHING;
 
 -- Step 8: Migrate HellaSwag scores (take latest per model/quant)
 WITH latest_hellaswag AS (
@@ -196,7 +199,7 @@ WITH latest_hellaswag AS (
     ORDER BY tr.model_name, tr.quantization, hs.timestamp DESC
 )
 INSERT INTO hellaswag_scores_v2 (model_variant_id, accuracy, total_questions, correct_answers, timestamp, context)
-SELECT 
+SELECT
     mv.id,
     lh.accuracy,
     lh.total_questions,
@@ -204,7 +207,8 @@ SELECT
     lh.timestamp,
     lh.context
 FROM latest_hellaswag lh
-JOIN model_variants mv ON mv.model_name = lh.model_name AND mv.quantization = lh.quantization;
+JOIN model_variants mv ON mv.model_name = lh.model_name AND mv.quantization = lh.quantization
+ON CONFLICT (model_variant_id) DO NOTHING;
 
 -- Step 9: Migrate TruthfulQA scores (take latest per model/quant)
 WITH latest_truthfulqa AS (
@@ -221,7 +225,7 @@ WITH latest_truthfulqa AS (
     ORDER BY tr.model_name, tr.quantization, tq.timestamp DESC
 )
 INSERT INTO truthfulqa_scores_v2 (model_variant_id, truthful_score, truthful_and_informative_score, total_questions, timestamp, context)
-SELECT 
+SELECT
     mv.id,
     lt.truthful_score,
     lt.truthful_and_informative_score,
@@ -229,7 +233,8 @@ SELECT
     lt.timestamp,
     lt.context
 FROM latest_truthfulqa lt
-JOIN model_variants mv ON mv.model_name = lt.model_name AND mv.quantization = lt.quantization;
+JOIN model_variants mv ON mv.model_name = lt.model_name AND mv.quantization = lt.quantization
+ON CONFLICT (model_variant_id) DO NOTHING;
 
 -- Step 10: Migrate generic benchmark scores (take latest per model/quant/benchmark)
 WITH latest_generic AS (
@@ -250,7 +255,7 @@ WITH latest_generic AS (
     ORDER BY tr.model_name, tr.quantization, gb.benchmark_name, gb.timestamp DESC
 )
 INSERT INTO generic_benchmark_scores_v2 (model_variant_id, benchmark_name, overall_score, sub_scores, timestamp, context)
-SELECT 
+SELECT
     mv.id,
     lg.benchmark_name,
     lg.overall_score,
@@ -258,7 +263,8 @@ SELECT
     lg.timestamp,
     lg.context
 FROM latest_generic lg
-JOIN model_variants mv ON mv.model_name = lg.model_name AND mv.quantization = lg.quantization;
+JOIN model_variants mv ON mv.model_name = lg.model_name AND mv.quantization = lg.quantization
+ON CONFLICT (model_variant_id, benchmark_name) DO NOTHING;
 
 -- The old tables are kept for rollback purposes
 -- Once you verify the migration worked, you can drop them with:

@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT \n            tr.id as test_run_id,\n            tr.model_name,\n            tr.quantization,\n            tr.backend,\n            tr.backend_version,\n            tr.timestamp,\n            hp.gpu_model,\n            hp.gpu_memory_gb,\n            hp.cpu_model,\n            hp.cpu_arch,\n            hp.ram_gb,\n            hp.ram_type,\n            hp.virtualization_type,\n            hp.optimizations\n        FROM test_runs tr\n        JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id\n        WHERE tr.id = $1 AND tr.status = 'completed'\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "test_run_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "model_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "quantization",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "backend",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "backend_version",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "gpu_model",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "gpu_memory_gb",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "cpu_model",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 9,
+        "name": "cpu_arch",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "ram_gb",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "ram_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 12,
+        "name": "virtualization_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 13,
+        "name": "optimizations",
+        "type_info": "TextArray"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "135462c787c0a8f19a1af945f8a57ce8a1b5242849fab94f919d725abd4daf9d"
+}

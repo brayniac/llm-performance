@@ -38,11 +38,11 @@
     <label>Backend:</label>
     <div class="checkbox-group">
       <label>
-        <input type="checkbox" bind:group={selectedBackends} value="llama_cpp" /> 
+        <input type="checkbox" bind:group={selectedBackends} value="llama.cpp" />
         llama.cpp
       </label>
       <label>
-        <input type="checkbox" bind:group={selectedBackends} value="vllm" /> 
+        <input type="checkbox" bind:group={selectedBackends} value="vllm" />
         vLLM
       </label>
     </div>

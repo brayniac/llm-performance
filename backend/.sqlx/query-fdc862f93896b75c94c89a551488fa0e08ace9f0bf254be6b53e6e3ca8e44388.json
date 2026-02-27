@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM hellaswag_scores WHERE test_run_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fdc862f93896b75c94c89a551488fa0e08ace9f0bf254be6b53e6e3ca8e44388"
+}

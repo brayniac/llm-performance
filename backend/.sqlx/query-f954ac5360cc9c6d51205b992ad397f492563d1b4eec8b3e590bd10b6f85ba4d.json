@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT hs.accuracy, hs.total_questions, hs.correct_answers\n        FROM hellaswag_scores_v2 hs\n        JOIN model_variants mv ON hs.model_variant_id = mv.id\n        WHERE mv.model_name = $1 AND mv.quantization = $2\n        LIMIT 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "accuracy",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 1,
+        "name": "total_questions",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "correct_answers",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "f954ac5360cc9c6d51205b992ad397f492563d1b4eec8b3e590bd10b6f85ba4d"
+}

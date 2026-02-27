@@ -2,27 +2,116 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import SingleRadarChart from './SingleRadarChart.svelte';
-  
+  import MultiQuantizationRadarChart from './MultiQuantizationRadarChart.svelte';
+  import ContextConcurrencyHeatmap from './ContextConcurrencyHeatmap.svelte';
+
   export let configId;
-  
+
   let detailData = null;
+  let analysisData = null;
   let loading = true;
   let error = null;
-  
+
+  // Unified scales for heatmaps (calculated across all quantizations)
+  let speedGlobalMin = null;
+  let speedGlobalMax = null;
+  let ttftGlobalMin = null;
+  let ttftGlobalMax = null;
+  let efficiencyGlobalMin = null;
+  let efficiencyGlobalMax = null;
+
+  // Calculate global min/max for unified heatmap scales
+  $: if (analysisData && analysisData.heatmap_data) {
+    const speedData = analysisData.heatmap_data.speed_data;
+    const ttftData = analysisData.heatmap_data.ttft_data;
+    const efficiencyData = analysisData.heatmap_data.efficiency_data;
+
+    let allSpeedValues = [];
+    let allTtftValues = [];
+    let allEfficiencyValues = [];
+
+    // Collect all values across all quantizations
+    Object.values(speedData).forEach(quantData => {
+      Object.values(quantData).forEach(powerLimitData => {
+        Object.values(powerLimitData).forEach(value => {
+          if (value !== undefined && value !== null) {
+            allSpeedValues.push(value);
+          }
+        });
+      });
+    });
+
+    Object.values(ttftData).forEach(quantData => {
+      Object.values(quantData).forEach(powerLimitData => {
+        Object.values(powerLimitData).forEach(value => {
+          if (value !== undefined && value !== null) {
+            allTtftValues.push(value);
+          }
+        });
+      });
+    });
+
+    if (efficiencyData) {
+      Object.values(efficiencyData).forEach(quantData => {
+        Object.values(quantData).forEach(powerLimitData => {
+          Object.values(powerLimitData).forEach(value => {
+            if (value !== undefined && value !== null) {
+              allEfficiencyValues.push(value);
+            }
+          });
+        });
+      });
+    }
+
+    // Calculate global min/max for speed
+    if (allSpeedValues.length > 0) {
+      speedGlobalMin = Math.min(...allSpeedValues);
+      speedGlobalMax = Math.max(...allSpeedValues);
+    }
+
+    // Calculate global min/max for ttft
+    if (allTtftValues.length > 0) {
+      ttftGlobalMin = Math.min(...allTtftValues);
+      ttftGlobalMax = Math.max(...allTtftValues);
+    }
+
+    // Calculate global min/max for efficiency
+    if (allEfficiencyValues.length > 0) {
+      efficiencyGlobalMin = Math.min(...allEfficiencyValues);
+      efficiencyGlobalMax = Math.max(...allEfficiencyValues);
+    }
+  }
+
   onMount(async () => {
     try {
       console.log('Fetching detail data for config ID:', configId);
       const response = await fetch(`/api/detail/${configId}`);
       console.log('Response status:', response.status);
-      
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Response error:', errorText);
         throw new Error(`Failed to load detail data: ${response.status} - ${errorText}`);
       }
-      
+
       detailData = await response.json();
       console.log('Detail data loaded:', detailData);
+
+      // Now fetch model+hardware analysis data
+      const modelName = encodeURIComponent(detailData.config.model);
+      // Create a simple hash from the hardware summary for the URL
+      const hardwareSummary = `${detailData.system_info.gpu_model} / ${detailData.system_info.cpu_arch}`;
+      const hardwareHash = encodeURIComponent(hardwareSummary);
+
+      console.log('Fetching analysis data for:', modelName, hardwareHash);
+      const analysisResponse = await fetch(`/api/model-hardware-analysis/${modelName}/${hardwareHash}`);
+
+      if (analysisResponse.ok) {
+        analysisData = await analysisResponse.json();
+        console.log('Analysis data loaded:', analysisData);
+      } else {
+        console.warn('Could not load analysis data, continuing with single config view');
+      }
     } catch (e) {
       console.error('Error loading detail data:', e);
       error = e.message;
@@ -36,10 +125,35 @@
   }
   
   function getScoreTier(score) {
-    if (score >= 80) return 'excellent';
-    if (score >= 70) return 'good';
-    if (score >= 60) return 'fair';
-    return 'poor';
+    if (score >= 97) return 'a-plus';
+    if (score >= 93) return 'a';
+    if (score >= 90) return 'a-minus';
+    if (score >= 87) return 'b-plus';
+    if (score >= 83) return 'b';
+    if (score >= 80) return 'b-minus';
+    if (score >= 77) return 'c-plus';
+    if (score >= 73) return 'c';
+    if (score >= 70) return 'c-minus';
+    if (score >= 67) return 'd-plus';
+    if (score >= 63) return 'd';
+    if (score >= 60) return 'd-minus';
+    return 'f';
+  }
+  
+  function getGradeLabel(score) {
+    if (score >= 97) return 'A+';
+    if (score >= 93) return 'A';
+    if (score >= 90) return 'A-';
+    if (score >= 87) return 'B+';
+    if (score >= 83) return 'B';
+    if (score >= 80) return 'B-';
+    if (score >= 77) return 'C+';
+    if (score >= 73) return 'C';
+    if (score >= 70) return 'C-';
+    if (score >= 67) return 'D+';
+    if (score >= 63) return 'D';
+    if (score >= 60) return 'D-';
+    return 'F';
   }
 </script>
 
@@ -53,113 +167,126 @@
     <div class="error">
       Error: {error}
     </div>
-  {:else if detailData}
+  {:else if detailData && analysisData}
+    <!-- Model + Hardware Analysis View -->
     <div class="header">
       <div class="config-header">
-        <h1 class="config-title">{detailData.config.name}</h1>
+        <h1 class="config-title">{analysisData.model_name}</h1>
         <div class="config-subtitle">
-          {detailData.system_info.gpu_model} / {detailData.system_info.cpu_arch} / {detailData.config.backend}
+          {analysisData.hardware_summary}
         </div>
         <div class="test-date">
-          Tested on {detailData.config.test_run_date}
+          {analysisData.total_configurations} configuration{analysisData.total_configurations !== 1 ? 's' : ''} tested
         </div>
       </div>
     </div>
-    
-    <div class="content-grid">
-      <!-- Overall Score Card -->
-      <div class="score-card">
-        <h3>Overall MMLU-Pro Score</h3>
-        <div class="overall-score" data-tier={getScoreTier(detailData.config.overall_score)}>
-          {formatPercentage(detailData.config.overall_score)}%
+
+    <!-- System Configuration Card -->
+    <div class="system-config-section">
+      <h2>System Configuration</h2>
+      <div class="system-details-grid">
+        <div class="detail-item">
+          <span class="label">GPU:</span>
+          <span class="value">{detailData.system_info.gpu_model} ({detailData.system_info.gpu_memory_gb}GB)</span>
         </div>
-      </div>
-      
-      <!-- Performance Metrics Card -->
-      <div class="performance-card">
-        <h3>Performance Metrics</h3>
-        <div class="metrics-grid">
-          <div class="metric">
-            <div class="metric-label">Generation Speed</div>
-            <div class="metric-value">{detailData.config.performance.speed} tok/s</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Prompt Processing</div>
-            <div class="metric-value">{detailData.config.performance.prompt_speed} tok/s</div>
-          </div>
+        <div class="detail-item">
+          <span class="label">CPU:</span>
+          <span class="value">{detailData.system_info.cpu_model} ({detailData.system_info.cpu_arch})</span>
         </div>
-      </div>
-      
-      <!-- System Info Card -->
-      <div class="system-card">
-        <h3>System Configuration</h3>
-        <div class="system-details">
-          <div class="detail-row">
-            <span class="label">GPU:</span>
-            <span class="value">{detailData.system_info.gpu_model} ({detailData.system_info.gpu_memory_gb}GB)</span>
-          </div>
-          <div class="detail-row">
-            <span class="label">CPU:</span>
-            <span class="value">{detailData.system_info.cpu_model} ({detailData.system_info.cpu_arch})</span>
-          </div>
-          <div class="detail-row">
-            <span class="label">RAM:</span>
-            <span class="value">{detailData.system_info.ram_gb}GB {detailData.system_info.ram_type}</span>
-          </div>
-          <div class="detail-row">
-            <span class="label">Backend:</span>
-            <span class="value">{detailData.config.backend} {detailData.config.backend_version}</span>
-          </div>
+        <div class="detail-item">
+          <span class="label">RAM:</span>
+          <span class="value">{detailData.system_info.ram_gb}GB {detailData.system_info.ram_type}</span>
+        </div>
+        <div class="detail-item">
+          <span class="label">Backend:</span>
+          <span class="value">{detailData.config.backend} {detailData.config.backend_version}</span>
         </div>
       </div>
     </div>
-    
-    <!-- Radar Chart -->
-    <div class="chart-section">
-      <SingleRadarChart 
-        categories={detailData.categories} 
-        configName={detailData.config.name}
-      />
-    </div>
-    
-    <!-- Category Scores Table -->
-    <div class="categories-table">
-      <h3>Category Breakdown</h3>
-      <div class="table-container">
-        <div class="table-header">
-          <div>Category</div>
-          <div>Score</div>
-          <div>Correct/Total</div>
-          <div>Performance</div>
+
+    <!-- Quantization Comparison -->
+    <div class="quantization-comparison">
+          <h3>Quantization Comparison</h3>
+          <div class="quant-grid">
+            {#each analysisData.quantizations as quant}
+              <div class="quant-card">
+                <div class="quant-header">{quant.quantization}</div>
+                <div class="quant-stats">
+                  <div class="stat">
+                    <span class="stat-label">Best Speed</span>
+                    <span class="stat-value">{quant.best_speed.toFixed(1)} tok/s</span>
+                  </div>
+                  {#if quant.best_ttft}
+                    <div class="stat">
+                      <span class="stat-label">Best TTFT</span>
+                      <span class="stat-value">{quant.best_ttft.toFixed(2)} ms</span>
+                    </div>
+                  {/if}
+                  {#if quant.best_tokens_per_kwh}
+                    <div class="stat">
+                      <span class="stat-label">Best Efficiency</span>
+                      <span class="stat-value">{(quant.best_tokens_per_kwh / 1000000).toFixed(2)}M tok/kWh</span>
+                    </div>
+                  {/if}
+                  <div class="stat">
+                    <span class="stat-label">Quality Score</span>
+                    <span class="stat-value">{quant.quality_score.toFixed(1)}%</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-label">Configs Tested</span>
+                    <span class="stat-value">{quant.configuration_count}</span>
+                  </div>
+                </div>
+              </div>
+            {/each}
+          </div>
         </div>
-        {#each detailData.categories as category}
-          <div class="table-row">
-            <div class="category-name">{category.name}</div>
-            <div class="category-score" data-tier={getScoreTier(category.score)}>
-              {formatPercentage(category.score)}%
+
+        <!-- Multi-Quantization Radar Chart -->
+        <MultiQuantizationRadarChart analysisData={analysisData} />
+
+        <!-- Power Limit × Concurrency Heatmaps -->
+        <div class="heatmaps-section">
+          <h3>Performance Heatmaps</h3>
+          <p class="heatmap-description">Explore how performance varies with GPU power limit and concurrency levels</p>
+
+          {#each analysisData.quantizations as quant}
+            <div class="heatmap-group">
+              <h4>{quant.quantization} Performance</h4>
+              <div class="heatmap-triple">
+                <div class="heatmap-wrapper">
+                  <ContextConcurrencyHeatmap
+                    heatmapData={analysisData.heatmap_data}
+                    quantization={quant.quantization}
+                    metric="speed"
+                    globalMin={speedGlobalMin}
+                    globalMax={speedGlobalMax}
+                  />
+                </div>
+                <div class="heatmap-wrapper">
+                  <ContextConcurrencyHeatmap
+                    heatmapData={analysisData.heatmap_data}
+                    quantization={quant.quantization}
+                    metric="ttft"
+                    globalMin={ttftGlobalMin}
+                    globalMax={ttftGlobalMax}
+                  />
+                </div>
+                {#if analysisData.heatmap_data.efficiency_data}
+                  <div class="heatmap-wrapper">
+                    <ContextConcurrencyHeatmap
+                      heatmapData={analysisData.heatmap_data}
+                      quantization={quant.quantization}
+                      metric="efficiency"
+                      globalMin={efficiencyGlobalMin}
+                      globalMax={efficiencyGlobalMax}
+                    />
+                  </div>
+                {/if}
+              </div>
             </div>
-            <div class="category-stats">
-              {#if category.correct_answers && category.total_questions}
-                {category.correct_answers}/{category.total_questions}
-              {:else}
-                —
-              {/if}
-            </div>
-            <div class="category-performance" data-tier={getScoreTier(category.score)}>
-              {#if category.score >= 80}
-                Excellent
-              {:else if category.score >= 70}
-                Good
-              {:else if category.score >= 60}
-                Fair
-              {:else}
-                Poor
-              {/if}
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
+          {/each}
+        </div>
   {/if}
 </div>
 
@@ -259,10 +386,19 @@
     margin-bottom: 0.5rem;
   }
   
-  .overall-score[data-tier="excellent"] { color: #28a745; }
-  .overall-score[data-tier="good"] { color: #17a2b8; }
-  .overall-score[data-tier="fair"] { color: #ffc107; }
-  .overall-score[data-tier="poor"] { color: #dc3545; }
+  .overall-score[data-tier="a-plus"], 
+  .overall-score[data-tier="a"], 
+  .overall-score[data-tier="a-minus"] { color: #28a745; }
+  .overall-score[data-tier="b-plus"], 
+  .overall-score[data-tier="b"], 
+  .overall-score[data-tier="b-minus"] { color: #17a2b8; }
+  .overall-score[data-tier="c-plus"], 
+  .overall-score[data-tier="c"], 
+  .overall-score[data-tier="c-minus"] { color: #ffc107; }
+  .overall-score[data-tier="d-plus"], 
+  .overall-score[data-tier="d"], 
+  .overall-score[data-tier="d-minus"] { color: #fd7e14; }
+  .overall-score[data-tier="f"] { color: #dc3545; }
   
   .metrics-grid {
     display: grid;
@@ -311,7 +447,7 @@
     color: #6c757d;
     min-width: 100px;
   }
-  
+
   .detail-row .value {
     color: #2c3e50;
     text-align: right;
@@ -337,7 +473,7 @@
   
   .table-container {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr;
     gap: 1rem;
   }
   
@@ -370,54 +506,236 @@
     font-weight: 600;
   }
   
-  .category-score[data-tier="excellent"] { color: #28a745; }
-  .category-score[data-tier="good"] { color: #17a2b8; }
-  .category-score[data-tier="fair"] { color: #ffc107; }
-  .category-score[data-tier="poor"] { color: #dc3545; }
+  .category-score[data-tier="a-plus"], 
+  .category-score[data-tier="a"], 
+  .category-score[data-tier="a-minus"] { color: #28a745; }
+  .category-score[data-tier="b-plus"], 
+  .category-score[data-tier="b"], 
+  .category-score[data-tier="b-minus"] { color: #17a2b8; }
+  .category-score[data-tier="c-plus"], 
+  .category-score[data-tier="c"], 
+  .category-score[data-tier="c-minus"] { color: #ffc107; }
+  .category-score[data-tier="d-plus"], 
+  .category-score[data-tier="d"], 
+  .category-score[data-tier="d-minus"] { color: #fd7e14; }
+  .category-score[data-tier="f"] { color: #dc3545; }
   
-  .category-stats {
-    color: #6c757d;
-    font-family: monospace;
-  }
   
   .category-performance {
     font-weight: 500;
     font-size: 0.9rem;
   }
   
-  .category-performance[data-tier="excellent"] { color: #28a745; }
-  .category-performance[data-tier="good"] { color: #17a2b8; }
-  .category-performance[data-tier="fair"] { color: #ffc107; }
-  .category-performance[data-tier="poor"] { color: #dc3545; }
+  .category-performance[data-tier="a-plus"], 
+  .category-performance[data-tier="a"], 
+  .category-performance[data-tier="a-minus"] { color: #28a745; }
+  .category-performance[data-tier="b-plus"], 
+  .category-performance[data-tier="b"], 
+  .category-performance[data-tier="b-minus"] { color: #17a2b8; }
+  .category-performance[data-tier="c-plus"], 
+  .category-performance[data-tier="c"], 
+  .category-performance[data-tier="c-minus"] { color: #ffc107; }
+  .category-performance[data-tier="d-plus"], 
+  .category-performance[data-tier="d"], 
+  .category-performance[data-tier="d-minus"] { color: #fd7e14; }
+  .category-performance[data-tier="f"] { color: #dc3545; }
   
+  /* System Configuration Section */
+  .system-config-section {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 3rem;
+  }
+
+  .system-config-section h2 {
+    margin: 0 0 1.5rem 0;
+    color: #2c3e50;
+    font-size: 1.5rem;
+  }
+
+  .system-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .detail-item .label {
+    font-weight: 600;
+    color: #6c757d;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .detail-item .value {
+    color: #2c3e50;
+    font-family: monospace;
+    font-size: 0.95rem;
+  }
+
+  /* Quantization Comparison Section */
+  .quantization-comparison {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 3rem;
+  }
+
+  .quantization-comparison h3 {
+    margin: 0 0 1.5rem 0;
+    color: #2c3e50;
+  }
+
+  .quant-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+  }
+
+  .quant-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 2px solid #e1e5e9;
+    transition: all 0.2s;
+  }
+
+  .quant-card:hover {
+    border-color: #2196f3;
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.15);
+  }
+
+  .quant-header {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    font-family: monospace;
+  }
+
+  .quant-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+
+  .stat-value {
+    font-weight: 600;
+    color: #2c3e50;
+    font-family: monospace;
+  }
+
+  .heatmaps-section {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .heatmaps-section h3 {
+    margin: 0 0 0.5rem 0;
+    color: #2c3e50;
+  }
+
+  .heatmap-description {
+    color: #6c757d;
+    margin-bottom: 2rem;
+  }
+
+  .heatmap-group {
+    margin-bottom: 3rem;
+  }
+
+  .heatmap-group:last-child {
+    margin-bottom: 0;
+  }
+
+  .heatmap-group h4 {
+    color: #2c3e50;
+    font-size: 1.25rem;
+    margin: 0 0 1rem 0;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    font-family: monospace;
+  }
+
+  .heatmap-pair {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 2rem;
+  }
+
+  .heatmap-triple {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 2rem;
+  }
+
+  .heatmap-wrapper {
+    background: #fafbfc;
+    border-radius: 8px;
+    padding: 1rem;
+    border: 1px solid #e1e5e9;
+  }
+
   /* Responsive design */
   @media (max-width: 768px) {
     .detail-view {
       padding: 1rem;
     }
-    
+
     .content-grid {
       grid-template-columns: 1fr;
     }
-    
+
     .config-title {
       font-size: 2rem;
     }
-    
+
     .table-container {
       grid-template-columns: 1fr;
       gap: 0.5rem;
     }
-    
+
     .table-header,
     .table-row {
       display: block;
     }
-    
+
     .table-header > div,
     .table-row > div {
       padding: 0.5rem;
       border-bottom: 1px solid #f1f3f4;
+    }
+
+    .quant-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .heatmap-pair,
+    .heatmap-triple {
+      grid-template-columns: 1fr;
     }
   }
 </style>

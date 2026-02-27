@@ -352,21 +352,40 @@ impl Validate for QualityScore {
 
 fn is_valid_quantization(quantization: &str) -> bool {
     let quant_upper = quantization.to_uppercase();
-    
-    // Comprehensive list of supported quantization formats
-    matches!(
+
+    // Check exact matches first
+    let exact_match = matches!(
         quant_upper.as_str(),
         // Floating point formats
-        "BF16" | "F16" | "FP16" | "F32" | "FP32" |
+        "BF16" | "F16" | "FP16" | "F32" | "FP32" | "FP8" | "FP8_DYNAMIC" |
         // Standard quantization formats
         "Q8_0" | "Q6_K" | "Q5_K_M" | "Q5_K_S" | "Q5_1" | "Q5_0" |
         "Q4_K_M" | "Q4_K_S" | "Q4_1" | "Q4_0" |
         "Q3_K_L" | "Q3_K_M" | "Q3_K_S" | "Q2_K" |
         // IQ (Integer Quantization) formats
         "IQ4_XS" | "IQ4_NL" | "IQ3_M" |
+        // Weight-Activation quantization formats (vLLM, TensorRT-LLM)
+        "W8A8" | "W4A16" | "W4A8" | "W8A16" |
         // Other formats
         "INT8" | "INT4" | "GGUF" | "AWQ" | "GPTQ"
-    )
+    );
+
+    if exact_match {
+        return true;
+    }
+
+    // Check for W*A* patterns with method suffixes (e.g., W4A16-CT, W4A16-AWQ, W4A16-GPTQ)
+    if let Some(base) = quant_upper.strip_suffix("-CT")
+        .or_else(|| quant_upper.strip_suffix("-AWQ"))
+        .or_else(|| quant_upper.strip_suffix("-GPTQ"))
+    {
+        // Check if the base part matches W*A* pattern
+        if base.starts_with('W') && base.contains("A") {
+            return true;
+        }
+    }
+
+    false
 }
 
 fn is_valid_backend(backend: &str) -> bool {

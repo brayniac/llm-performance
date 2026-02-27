@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT ms.category, ms.score, ms.total_questions, ms.correct_answers\n        FROM mmlu_scores_v2 ms\n        JOIN model_variants mv ON ms.model_variant_id = mv.id\n        WHERE mv.model_name = $1 AND mv.quantization = $2\n        ORDER BY ms.category\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "category",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "score",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 2,
+        "name": "total_questions",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "correct_answers",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "f7bd9e1eac582d30f5994193bd1153ecb4505fd2621405c5f1ba72332b4a366c"
+}

@@ -8,8 +8,8 @@
   
   const dispatch = createEventDispatcher();
   
-  // Check if the best quantization is selected
-  $: isSelected = selectedConfigs.includes(model.best_quantization.id);
+  // Check if the best hardware config is selected
+  $: isSelected = selectedConfigs.includes(model.best_hardware.best_config.id);
   
   function getShortModelName(fullName) {
     const parts = fullName.split('/');
@@ -31,7 +31,7 @@
   }
   
   function handleCheckboxChange() {
-    dispatch('selectionChanged', { configId: model.best_quantization.id });
+    dispatch('selectionChanged', { configId: model.best_hardware.best_config.id });
   }
   
   function getScoreColor(score) {
@@ -78,18 +78,18 @@
   }
 </script>
 
-<div class="model-row" class:expanded class:selected={isSelected} style="grid-template-columns: {benchmark === 'none' ? '40px 2.5fr 1.5fr 1fr 1fr 0.8fr 1fr' : '40px 2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr'}">
+<div class="model-row" class:expanded class:selected={isSelected} style="grid-template-columns: {benchmark === 'none' ? '40px 2.5fr 1.5fr 1fr 1.2fr 1fr 1fr 1fr' : '40px 2.5fr 1.5fr 1fr 1fr 1.2fr 1fr 1fr 1fr'}">
   <div class="checkbox-column">
-    <input 
-      type="checkbox" 
+    <input
+      type="checkbox"
       checked={isSelected}
       disabled={!isSelected && selectedConfigs.length >= 2}
       on:change={handleCheckboxChange}
     />
   </div>
   <div class="model-info">
-    <button 
-      class="expand-btn" 
+    <button
+      class="expand-btn"
       on:click={toggleExpansion}
       aria-label={expanded ? 'Collapse' : 'Expand'}
     >
@@ -99,75 +99,126 @@
       <div class="model-name">{getShortModelName(model.model_name)}</div>
       <div class="model-slug">{model.model_name}</div>
       <div class="quant-count">
-        {model.qualifying_quantizations} of {model.total_quantizations} quants qualify
+        {model.qualifying_platforms} of {model.total_hardware_platforms} hardware platforms
       </div>
+      {#if model.best_hardware.best_config.concurrent_requests || model.best_hardware.best_config.max_context_length || model.best_hardware.best_config.load_pattern || model.best_hardware.best_config.gpu_power_limit_watts || model.best_hardware.best_config.dataset_name}
+        <div class="config-badges">
+          {#if model.best_hardware.best_config.load_pattern && model.best_hardware.best_config.concurrent_requests}
+            <span class="badge" title="Load Pattern">{model.best_hardware.best_config.load_pattern} ({model.best_hardware.best_config.concurrent_requests})</span>
+          {:else if model.best_hardware.best_config.concurrent_requests}
+            <span class="badge" title="Concurrent Requests">{model.best_hardware.best_config.concurrent_requests} requests</span>
+          {:else if model.best_hardware.best_config.load_pattern}
+            <span class="badge" title="Load Pattern">{model.best_hardware.best_config.load_pattern}</span>
+          {/if}
+          {#if model.best_hardware.best_config.max_context_length}
+            <span class="badge" title="Max Context Length">{model.best_hardware.best_config.max_context_length} ctx</span>
+          {/if}
+          {#if model.best_hardware.best_config.dataset_name}
+            <span class="badge" title="Dataset">{model.best_hardware.best_config.dataset_name}</span>
+          {/if}
+          {#if model.best_hardware.best_config.gpu_power_limit_watts}
+            <span class="badge" title="GPU Power Limit">{model.best_hardware.best_config.gpu_power_limit_watts}W</span>
+          {/if}
+        </div>
+      {/if}
     </div>
   </div>
-  
+
   <div class="quantization">
-    {model.best_quantization.quantization}
+    {model.best_hardware.best_config.quantization}
   </div>
-  
+
   {#if benchmark !== 'none'}
-    <div class="score" style="color: {model.best_quantization.quality_score === 0 ? '#6c757d' : getScoreColor(model.best_quantization.quality_score)}">
-      {model.best_quantization.quality_score === 0 ? 'Unknown' : model.best_quantization.quality_score.toFixed(1) + '%'}
+    <div class="score" style="color: {model.best_hardware.best_config.quality_score === 0 ? '#6c757d' : getScoreColor(model.best_hardware.best_config.quality_score)}">
+      {model.best_hardware.best_config.quality_score === 0 ? 'Unknown' : model.best_hardware.best_config.quality_score.toFixed(1) + '%'}
     </div>
   {/if}
-  
-  <div class="speed" class:unknown={model.best_quantization.tokens_per_second === 0}>
-    {model.best_quantization.tokens_per_second === 0 ? 'Unknown' : model.best_quantization.tokens_per_second.toFixed(1) + ' tok/s'}
+
+  <div class="speed" class:unknown={model.best_hardware.best_config.tokens_per_second === 0}>
+    {model.best_hardware.best_config.tokens_per_second === 0 ? 'Unknown' : model.best_hardware.best_config.tokens_per_second.toFixed(1) + ' tok/s'}
   </div>
-  
-  <div class="platform" title="{model.best_quantization.hardware}">
-    {extractGpuModel(model.best_quantization.hardware)}
+
+  <div class="efficiency" class:unknown={!model.best_hardware.best_config.tokens_per_kwh}>
+    {model.best_hardware.best_config.tokens_per_kwh ? (model.best_hardware.best_config.tokens_per_kwh / 1000000).toFixed(2) + 'M/kWh' : 'N/A'}
   </div>
-  
-  <div class="memory" class:unknown={model.best_quantization.memory_gb === 0}>
-    {model.best_quantization.memory_gb === 0 ? 'Unknown' : model.best_quantization.memory_gb.toFixed(1) + ' GB'}
+
+  <div class="backend">
+    {model.best_hardware.best_config.backend}
   </div>
-  
+
+  <div class="platform" title="{model.best_hardware.hardware}">
+    {extractGpuModel(model.best_hardware.hardware)}
+  </div>
+
   <div class="actions">
-    <button 
-      class="detail-btn" 
-      on:click={() => viewDetails(model.best_quantization.id)}
+    <button
+      class="detail-btn"
+      on:click={() => viewDetails(model.best_hardware.best_config.id)}
     >
       Details
     </button>
   </div>
 </div>
 
-{#if expanded && model.all_quantizations}
+{#if expanded && model.all_hardware_platforms}
   <div class="expanded-content">
     <div class="quant-header" class:no-benchmark={benchmark === 'none'}>
+      <div>Hardware Platform</div>
       <div>Quantization</div>
       {#if benchmark !== 'none'}
         <div>MMLU Score</div>
       {/if}
       <div>Speed</div>
-      <div>Platform</div>
-      <div>Memory</div>
+      <div>Backend</div>
       <div>Actions</div>
     </div>
-    
-    {#each model.all_quantizations as quant}
+
+    {#each model.all_hardware_platforms as platform}
       <div class="quant-row" class:no-benchmark={benchmark === 'none'}>
-        <div>{quant.quantization}</div>
+        <div>
+          <div class="platform-name" title="{platform.hardware}">
+            {extractGpuModel(platform.hardware)}
+          </div>
+          {#if platform.total_configs > 1}
+            <div class="config-count">{platform.total_configs} configs tested</div>
+          {/if}
+        </div>
+        <div>
+          <div>{platform.best_config.quantization}</div>
+          {#if platform.best_config.concurrent_requests || platform.best_config.max_context_length || platform.best_config.load_pattern || platform.best_config.gpu_power_limit_watts || platform.best_config.dataset_name}
+            <div class="config-badges" style="margin-top: 4px;">
+              {#if platform.best_config.load_pattern && platform.best_config.concurrent_requests}
+                <span class="badge" title="Load Pattern">{platform.best_config.load_pattern} ({platform.best_config.concurrent_requests})</span>
+              {:else if platform.best_config.concurrent_requests}
+                <span class="badge" title="Concurrent Requests">{platform.best_config.concurrent_requests} requests</span>
+              {:else if platform.best_config.load_pattern}
+                <span class="badge" title="Load Pattern">{platform.best_config.load_pattern}</span>
+              {/if}
+              {#if platform.best_config.max_context_length}
+                <span class="badge" title="Max Context Length">{platform.best_config.max_context_length} ctx</span>
+              {/if}
+              {#if platform.best_config.dataset_name}
+                <span class="badge" title="Dataset">{platform.best_config.dataset_name}</span>
+              {/if}
+              {#if platform.best_config.gpu_power_limit_watts}
+                <span class="badge" title="GPU Power Limit">{platform.best_config.gpu_power_limit_watts}W</span>
+              {/if}
+            </div>
+          {/if}
+        </div>
         {#if benchmark !== 'none'}
-          <div style="color: {quant.quality_score === 0 ? '#6c757d' : getScoreColor(quant.quality_score)}">
-            {quant.quality_score === 0 ? 'Unknown' : quant.quality_score.toFixed(1) + '%'}
+          <div style="color: {platform.best_config.quality_score === 0 ? '#6c757d' : getScoreColor(platform.best_config.quality_score)}">
+            {platform.best_config.quality_score === 0 ? 'Unknown' : platform.best_config.quality_score.toFixed(1) + '%'}
           </div>
         {/if}
-        <div class:unknown={quant.tokens_per_second === 0}>
-          {quant.tokens_per_second === 0 ? 'Unknown' : quant.tokens_per_second.toFixed(1) + ' tok/s'}
+        <div class:unknown={platform.best_config.tokens_per_second === 0}>
+          {platform.best_config.tokens_per_second === 0 ? 'Unknown' : platform.best_config.tokens_per_second.toFixed(1) + ' tok/s'}
         </div>
-        <div class="platform small" title="{quant.hardware}">
-          {extractGpuModel(quant.hardware)}
-        </div>
-        <div class:unknown={quant.memory_gb === 0}>{quant.memory_gb === 0 ? 'Unknown' : quant.memory_gb.toFixed(1) + ' GB'}</div>
+        <div class="backend">{platform.best_config.backend}</div>
         <div>
-          <button 
-            class="detail-btn small" 
-            on:click={() => viewDetails(quant.id)}
+          <button
+            class="detail-btn small"
+            on:click={() => viewDetails(platform.best_config.id)}
           >
             Details
           </button>
@@ -180,7 +231,7 @@
 <style>
   .model-row {
     display: grid;
-    grid-template-columns: 40px 2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 40px 2.5fr 1.5fr 1fr 1fr 1fr 1fr 1fr;
     gap: 1rem;
     padding: 1rem;
     border-bottom: 1px solid #e1e5e9;
@@ -294,7 +345,7 @@
   
   .quant-header {
     display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr;
     gap: 1rem;
     padding: 0.5rem 0;
     font-weight: 600;
@@ -303,21 +354,32 @@
     border-bottom: 1px solid #e1e5e9;
     margin-bottom: 0.5rem;
   }
-  
+
   .quant-header.no-benchmark {
-    grid-template-columns: 1.5fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
   }
-  
+
   .quant-row {
     display: grid;
-    grid-template-columns: 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr;
     gap: 1rem;
     padding: 0.5rem 0;
     font-size: 0.9rem;
   }
-  
+
   .quant-row.no-benchmark {
-    grid-template-columns: 1.5fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+  }
+
+  .platform-name {
+    font-weight: 600;
+    color: #2c3e50;
+  }
+
+  .config-count {
+    font-size: 0.7rem;
+    color: #6c757d;
+    margin-top: 2px;
   }
   
   .quant-row:hover {
@@ -339,5 +401,23 @@
   
   .platform.small {
     font-size: 0.9rem;
+  }
+
+  .config-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    background-color: #e3f2fd;
+    color: #1976d2;
+    border-radius: 3px;
+    white-space: nowrap;
   }
 </style>

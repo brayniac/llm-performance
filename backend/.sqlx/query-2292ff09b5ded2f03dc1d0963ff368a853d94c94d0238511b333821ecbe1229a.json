@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM truthfulqa_scores WHERE test_run_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2292ff09b5ded2f03dc1d0963ff368a853d94c94d0238511b333821ecbe1229a"
+}

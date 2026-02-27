@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM humaneval_scores WHERE test_run_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cae026870daaa42e6608b1d02c7d4f9a09129d8bb1e9723d9eb3ce1202157daf"
+}

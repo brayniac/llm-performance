@@ -1,0 +1,314 @@
+// handlers/model_hardware_analysis.rs
+// Model + Hardware analysis endpoint for detailed visualizations
+
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::Json,
+};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+use llm_benchmark_types::ErrorResponse;
+
+use crate::AppState;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ModelHardwareAnalysis {
+    pub model_name: String,
+    pub hardware_summary: String,
+    pub total_configurations: usize,
+    pub quantizations: Vec<QuantizationSummary>,
+    pub heatmap_data: HeatmapData,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct QuantizationSummary {
+    pub quantization: String,
+    pub best_speed: f64,
+    pub best_ttft: Option<f64>,
+    pub best_tokens_per_kwh: Option<f64>,
+    pub quality_score: f64,
+    pub configuration_count: usize,
+    pub category_scores: HashMap<String, f64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HeatmapData {
+    pub quantizations: Vec<String>,
+    pub power_limits: Vec<i32>,
+    pub concurrent_requests: Vec<i32>,
+    // Map: quantization -> power_limit -> concurrent_requests -> metric
+    pub speed_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>>,
+    pub ttft_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>>,
+    pub efficiency_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>>,
+}
+
+/// Sort quantizations in a logical order (full precision first, then quantized)
+fn quantization_sort_key(quant: &str) -> (u8, String) {
+    let priority = match quant {
+        // Full precision formats (highest priority)
+        "FP32" => 0,
+        "BF16" => 1,
+        "FP16" => 2,
+        "FP8_DYNAMIC" => 3,
+        "FP8" => 4,
+        // Weight-only quantization
+        q if q.starts_with("W") && q.contains("A16") => 10,
+        q if q.starts_with("W") && q.contains("A8") => 11,
+        // Full quantization
+        q if q.starts_with("W") => 20,
+        // GGUF-style quantization
+        q if q.starts_with("Q") => 30,
+        // Everything else
+        _ => 99,
+    };
+    (priority, quant.to_string())
+}
+
+/// Get model+hardware analysis data for visualizations
+pub async fn get_model_hardware_analysis(
+    Path((model_name, hardware_hash)): Path<(String, String)>,
+    State(state): State<AppState>,
+) -> Result<Json<ModelHardwareAnalysis>, (StatusCode, Json<ErrorResponse>)> {
+    // Decode URL-encoded model name and hardware hash
+    let model_name = urlencoding::decode(&model_name)
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse::new(format!("Invalid model name encoding: {}", e))),
+            )
+        })?
+        .to_string();
+
+    let hardware_summary = urlencoding::decode(&hardware_hash)
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse::new(format!("Invalid hardware hash encoding: {}", e))),
+            )
+        })?
+        .to_string();
+
+    // Get the most recent test run for each unique configuration (quantization, power_limit, concurrent_requests)
+    let test_runs = sqlx::query!(
+        r#"
+        WITH ranked_runs AS (
+            SELECT
+                tr.id,
+                tr.quantization,
+                tr.concurrent_requests,
+                tr.gpu_power_limit_watts,
+                tr.timestamp,
+                ROW_NUMBER() OVER (
+                    PARTITION BY tr.quantization, tr.gpu_power_limit_watts, tr.concurrent_requests
+                    ORDER BY tr.timestamp DESC
+                ) as rn
+            FROM test_runs tr
+            JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id
+            WHERE tr.model_name = $1
+                AND CONCAT(hp.gpu_model, ' / ', hp.cpu_arch) = $2
+                AND tr.status = 'completed'
+        )
+        SELECT
+            rr.id as "id!",
+            rr.quantization as "quantization!",
+            rr.concurrent_requests as "concurrent_requests?",
+            rr.gpu_power_limit_watts as "gpu_power_limit_watts?",
+            pm_speed.value as "tokens_per_second?",
+            pm_ttft.value as "ttft?",
+            pm_power.value as "gpu_power_watts?"
+        FROM ranked_runs rr
+        LEFT JOIN performance_metrics pm_speed
+            ON rr.id = pm_speed.test_run_id AND pm_speed.metric_name = 'tokens_per_second'
+        LEFT JOIN performance_metrics pm_ttft
+            ON rr.id = pm_ttft.test_run_id AND pm_ttft.metric_name = 'ttft_p95_ms'
+        LEFT JOIN performance_metrics pm_power
+            ON rr.id = pm_power.test_run_id AND pm_power.metric_name = 'gpu_power_watts'
+        WHERE rr.rn = 1
+        "#,
+        model_name,
+        hardware_summary
+    )
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(format!("Database error: {}", e))),
+        )
+    })?;
+
+    if test_runs.is_empty() {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(ErrorResponse::new(
+                "No test runs found for this model+hardware combination".to_string(),
+            )),
+        ));
+    }
+
+    // Aggregate data by quantization
+    // Tuple: (power_limit, concurrent, speed, ttft, gpu_power, tokens_per_kwh)
+    let mut quant_map: HashMap<String, Vec<(i32, i32, f64, Option<f64>, Option<f64>, Option<f64>)>> = HashMap::new();
+    let mut all_power_limits = std::collections::BTreeSet::new();
+    let mut all_concurrent_requests = std::collections::BTreeSet::new();
+
+    for run in test_runs.iter() {
+        let quant = run.quantization.clone();
+        let power_limit = run.gpu_power_limit_watts.unwrap_or(0);
+        let concurrent = run.concurrent_requests.unwrap_or(1);
+        let speed = run.tokens_per_second.unwrap_or(0.0);
+        let ttft = run.ttft;
+        let gpu_power = run.gpu_power_watts;
+
+        // Calculate tokens/kWh: (tokens/second × 3,600,000) / watts
+        let tokens_per_kwh = if let Some(power) = gpu_power {
+            if power > 0.0 {
+                Some((speed * 3_600_000.0) / power)
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        all_power_limits.insert(power_limit);
+        all_concurrent_requests.insert(concurrent);
+
+        quant_map
+            .entry(quant)
+            .or_insert_with(Vec::new)
+            .push((power_limit, concurrent, speed, ttft, gpu_power, tokens_per_kwh));
+    }
+
+    // Get quality scores for each quantization
+    let mut quantization_summaries = Vec::new();
+    for (quant, runs) in quant_map.iter() {
+        // Get category-level scores
+        let category_scores_rows = sqlx::query!(
+            r#"
+            SELECT ms.category, AVG(ms.score) as avg_score
+            FROM mmlu_scores_v2 ms
+            JOIN model_variants mv ON ms.model_variant_id = mv.id
+            WHERE mv.model_name = $1 AND mv.quantization = $2
+            GROUP BY ms.category
+            "#,
+            model_name,
+            quant
+        )
+        .fetch_all(&state.db)
+        .await
+        .unwrap_or_default();
+
+        let mut category_scores = HashMap::new();
+        let mut total_score = 0.0;
+        let mut count = 0;
+
+        for row in category_scores_rows {
+            let score = row.avg_score.unwrap_or(0.0);
+            category_scores.insert(row.category, score);
+            total_score += score;
+            count += 1;
+        }
+
+        let quality_score = if count > 0 { total_score / count as f64 } else { 0.0 };
+
+        let best_speed = runs.iter().map(|(_, _, speed, _, _, _)| *speed).fold(0.0_f64, f64::max);
+        let best_ttft = runs
+            .iter()
+            .filter_map(|(_, _, _, ttft, _, _)| *ttft)
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let best_tokens_per_kwh = runs
+            .iter()
+            .filter_map(|(_, _, _, _, _, tokens_kwh)| *tokens_kwh)
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        quantization_summaries.push(QuantizationSummary {
+            quantization: quant.clone(),
+            best_speed,
+            best_ttft,
+            best_tokens_per_kwh,
+            quality_score,
+            configuration_count: runs.len(),
+            category_scores,
+        });
+    }
+
+    // Sort quantization summaries by logical order
+    quantization_summaries.sort_by(|a, b| {
+        quantization_sort_key(&a.quantization).cmp(&quantization_sort_key(&b.quantization))
+    });
+
+    // Build heatmap data
+    let mut speed_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
+    let mut ttft_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
+    let mut efficiency_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
+
+    for (quant, runs) in quant_map.iter() {
+        let quant_speed_map = speed_data.entry(quant.clone()).or_insert_with(HashMap::new);
+        let quant_ttft_map = ttft_data.entry(quant.clone()).or_insert_with(HashMap::new);
+        let quant_efficiency_map = efficiency_data.entry(quant.clone()).or_insert_with(HashMap::new);
+
+        for (power_limit, concurrent, speed, ttft, _gpu_power, tokens_per_kwh) in runs {
+            quant_speed_map
+                .entry(*power_limit)
+                .or_insert_with(HashMap::new)
+                .insert(*concurrent, *speed);
+
+            if let Some(ttft_val) = ttft {
+                quant_ttft_map
+                    .entry(*power_limit)
+                    .or_insert_with(HashMap::new)
+                    .insert(*concurrent, *ttft_val);
+            }
+
+            if let Some(efficiency_val) = tokens_per_kwh {
+                quant_efficiency_map
+                    .entry(*power_limit)
+                    .or_insert_with(HashMap::new)
+                    .insert(*concurrent, *efficiency_val);
+            }
+        }
+    }
+
+    // Collect and sort quantizations
+    let mut quantizations: Vec<String> = quant_map.keys().cloned().collect();
+    quantizations.sort_by(|a, b| quantization_sort_key(a).cmp(&quantization_sort_key(b)));
+
+    let heatmap_data = HeatmapData {
+        quantizations,
+        power_limits: all_power_limits.into_iter().collect(),
+        concurrent_requests: all_concurrent_requests.into_iter().collect(),
+        speed_data,
+        ttft_data,
+        efficiency_data,
+    };
+
+    Ok(Json(ModelHardwareAnalysis {
+        model_name: model_name.clone(),
+        hardware_summary,
+        total_configurations: test_runs.len(),
+        quantizations: quantization_summaries,
+        heatmap_data,
+    }))
+}
+
+async fn get_hardware_summary_from_hash(
+    db: &sqlx::PgPool,
+    _hardware_hash: &str,
+) -> Result<String, sqlx::Error> {
+    // For now, just get the first hardware profile's summary
+    // In the future, we could implement a proper hash-based lookup
+    let result = sqlx::query!(
+        r#"
+        SELECT CONCAT(gpu_model, ' / ', cpu_arch) as summary
+        FROM hardware_profiles
+        LIMIT 1
+        "#
+    )
+    .fetch_one(db)
+    .await?;
+
+    Ok(result.summary.unwrap_or_else(|| "Unknown".to_string()))
+}

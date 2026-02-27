@@ -58,6 +58,7 @@ pub mod metric_names {
     pub const THROUGHPUT_TOKENS_PER_SECOND: &str = "throughput_tokens_per_second";
     pub const PEAK_MEMORY_GB: &str = "peak_memory_gb";
     pub const MODEL_SIZE_GB: &str = "model_size_gb";
+    pub const GPU_POWER_WATTS: &str = "gpu_power_watts";
 }
 
 /// Known metric names for validation

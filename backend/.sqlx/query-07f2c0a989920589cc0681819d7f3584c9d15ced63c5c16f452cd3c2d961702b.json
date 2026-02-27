@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO hardware_profiles \n        (id, gpu_model, gpu_memory_gb, cpu_model, cpu_arch, ram_gb, ram_type, \n         virtualization_type, optimizations)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "07f2c0a989920589cc0681819d7f3584c9d15ced63c5c16f452cd3c2d961702b"
+}

@@ -1,0 +1,62 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT \n            tr.id,\n            tr.model_name,\n            tr.quantization,\n            tr.backend,\n            CONCAT(hp.gpu_model, ' / ', hp.cpu_arch) as hardware_summary,\n            NULL as overall_score,\n            tr.timestamp,\n            tr.status\n        FROM test_runs tr\n        JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id\n        -- Benchmark scores now handled separately\n        WHERE tr.status = 'completed'\n        GROUP BY tr.id, tr.model_name, tr.quantization, tr.backend, \n                 hp.gpu_model, hp.cpu_arch, tr.timestamp, tr.status\n        ORDER BY tr.timestamp DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "model_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "quantization",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "backend",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "hardware_summary",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "overall_score",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 7,
+        "name": "status",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      null,
+      null,
+      true,
+      false
+    ]
+  },
+  "hash": "7cafa19b0cc7c22c0193a52c27c5cac479f064fa8979ddd5244e597cc4da21ef"
+}

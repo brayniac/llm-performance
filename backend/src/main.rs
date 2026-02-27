@@ -13,7 +13,7 @@ use llm_benchmark_types::HealthResponse;
 mod models;
 mod handlers;
 
-use handlers::{get_performance_grid, get_comparison, get_configurations, get_detail, upload_experiment, get_grouped_performance, delete_test_run, delete_by_model_quant, delete_benchmark_scores, upload_benchmarks_raw};
+use handlers::{get_performance_grid, get_comparison, get_configurations, get_detail, upload_experiment, get_grouped_performance, delete_test_run, delete_by_model_quant, delete_benchmark_scores, upload_benchmarks_raw, get_model_hardware_analysis};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -46,6 +46,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/comparison", get(get_comparison))
         .route("/api/configurations", get(get_configurations))
         .route("/api/detail/:test_run_id", get(get_detail))
+        .route("/api/model-hardware-analysis/:model_name/:hardware_hash", get(get_model_hardware_analysis))
         .route("/api/upload-experiment", post(upload_experiment))
         .route("/api/delete/:test_run_id", delete(delete_test_run))
         .route("/api/delete-by-model", post(delete_by_model_quant))

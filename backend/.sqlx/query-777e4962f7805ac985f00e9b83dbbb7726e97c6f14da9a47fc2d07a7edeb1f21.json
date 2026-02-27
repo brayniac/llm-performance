@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, test_run_id, truthful_score, helpful_score, total_questions, timestamp, context, created_at \n                 FROM truthfulqa_scores WHERE test_run_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "test_run_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "truthful_score",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 3,
+        "name": "helpful_score",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 4,
+        "name": "total_questions",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "context",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "777e4962f7805ac985f00e9b83dbbb7726e97c6f14da9a47fc2d07a7edeb1f21"
+}

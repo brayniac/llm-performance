@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO performance_metrics (test_run_id, metric_name, value, unit)\n            VALUES ($1, $2, $3, $4)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Float8",
+        "Varchar"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "8efca67c74c289e2fc4ebdf0ecb1baddb50ca379f99409833e0cd89826f18fa9"
+}

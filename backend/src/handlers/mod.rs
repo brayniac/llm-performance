@@ -7,6 +7,7 @@ pub mod configuration;
 pub mod experiment;
 pub mod grouped_performance;
 pub mod delete;
+pub mod model_hardware_analysis;
 // pub mod list_test_runs; // Disabled until migration is run
 // pub mod benchmark_upload; // Disabled until migration is run
 pub mod benchmark_upload_raw;
@@ -19,6 +20,7 @@ pub use configuration::{get_configurations, get_detail};
 pub use experiment::upload_experiment;
 pub use grouped_performance::get_grouped_performance;
 pub use delete::{delete_test_run, delete_by_model_quant, delete_benchmark_scores};
+pub use model_hardware_analysis::get_model_hardware_analysis;
 // pub use list_test_runs::list_test_runs; // Disabled until migration is run
 // pub use benchmark_upload::upload_benchmarks; // Disabled until migration is run
 pub use benchmark_upload_raw::upload_benchmarks_raw;

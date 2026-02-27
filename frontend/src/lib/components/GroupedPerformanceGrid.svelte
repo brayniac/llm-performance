@@ -16,18 +16,16 @@
   // Filter and sort values
   let selectedBenchmark = 'mmlu'; // Default to MMLU Pro
   let minQuality = 0;
-  let maxMemory = 100;
   let minSpeed = 0;
   let sortBy = 'quality'; // Default to quality sorting
   let sortDirection = 'desc';
   let selectedHardwareCategories = []; // All categories selected by default
-  
+
   async function loadData() {
     loading = true;
     const params = new URLSearchParams({
       benchmark: selectedBenchmark,
       ...(minQuality > 0 && { min_quality: minQuality }),
-      ...(maxMemory < 100 && { max_memory_gb: maxMemory }),
       ...(minSpeed > 0 && { min_speed: minSpeed }),
       sort_by: sortBy,
       sort_direction: sortDirection
@@ -132,11 +130,11 @@
       />
     {/if}
     
-    <HardwareFilters 
+    <HardwareFilters
       bind:selectedCategories={selectedHardwareCategories}
       on:change={handleHardwareFilterChange}
     />
-    
+
     <div class="filters">
       {#if selectedBenchmark !== 'none'}
         <div class="filter-group">
@@ -156,29 +154,15 @@
       
       <div class="filter-group">
         <label>
-          Speed ≥ 
-          <input 
-            type="number" 
-            bind:value={minSpeed} 
+          Speed ≥
+          <input
+            type="number"
+            bind:value={minSpeed}
             on:change={handleFiltersChanged}
-            min="0" 
-            max="500" 
+            min="0"
+            max="500"
             step="10"
           /> tok/s
-        </label>
-      </div>
-      
-      <div class="filter-group">
-        <label>
-          Memory ≤ 
-          <input 
-            type="number" 
-            bind:value={maxMemory} 
-            on:change={handleFiltersChanged}
-            min="1" 
-            max="100" 
-            step="1"
-          /> GB
         </label>
       </div>
     </div>
@@ -199,34 +183,35 @@
     <div class="grid-container">
       <div class="grid-header" class:no-benchmark={selectedBenchmark === 'none'}>
         <div class="checkbox-column"></div>
-        <div 
-          class="sortable" 
+        <div
+          class="sortable"
           on:click={() => handleSortChange('model_name')}
         >
           Model {getSortIndicator('model_name')}
         </div>
         <div>Best Quantization</div>
         {#if selectedBenchmark !== 'none'}
-          <div 
-            class="sortable" 
+          <div
+            class="sortable"
             on:click={() => handleSortChange('quality')}
           >
             MMLU Score {getSortIndicator('quality')}
           </div>
         {/if}
-        <div 
-          class="sortable" 
+        <div
+          class="sortable"
           on:click={() => handleSortChange('speed')}
         >
           Speed {getSortIndicator('speed')}
         </div>
-        <div>Platform</div>
-        <div 
-          class="sortable" 
-          on:click={() => handleSortChange('memory')}
+        <div
+          class="sortable"
+          on:click={() => handleSortChange('efficiency')}
         >
-          Memory {getSortIndicator('memory')}
+          Efficiency {getSortIndicator('efficiency')}
         </div>
+        <div>Backend</div>
+        <div>Platform</div>
         <div>Actions</div>
       </div>
       
@@ -296,16 +281,16 @@
   
   .grid-header {
     display: grid;
-    grid-template-columns: 40px 2.5fr 1.5fr 1fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 40px 2.5fr 1.5fr 1fr 1fr 1.2fr 1fr 1fr 1fr;
     gap: 1rem;
     padding: 1rem;
     background-color: #6c757d;
     color: white;
     font-weight: bold;
   }
-  
+
   .grid-header.no-benchmark {
-    grid-template-columns: 40px 2.5fr 1.5fr 1fr 1fr 0.8fr 1fr;
+    grid-template-columns: 40px 2.5fr 1.5fr 1fr 1.2fr 1fr 1fr 1fr;
   }
   
   .checkbox-column {
@@ -319,7 +304,7 @@
     cursor: pointer;
     user-select: none;
   }
-  
+
   .sortable:hover {
     text-decoration: underline;
   }

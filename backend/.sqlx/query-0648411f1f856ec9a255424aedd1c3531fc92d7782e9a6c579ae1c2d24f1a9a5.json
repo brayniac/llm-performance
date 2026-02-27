@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT tr.model_name, tr.quantization\n        FROM test_runs tr\n        WHERE tr.id = $1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "model_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "quantization",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "0648411f1f856ec9a255424aedd1c3531fc92d7782e9a6c579ae1c2d24f1a9a5"
+}

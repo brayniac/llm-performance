@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT gs.accuracy, gs.problems_solved, gs.total_problems\n        FROM gsm8k_scores_v2 gs\n        JOIN model_variants mv ON gs.model_variant_id = mv.id\n        WHERE mv.model_name = $1 AND mv.quantization = $2\n        LIMIT 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "accuracy",
+        "type_info": "Float8"
+      },
+      {
+        "ordinal": 1,
+        "name": "problems_solved",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "total_problems",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "302444c3295c3fc1c7e89cb06dae4ead86a030ec219295c07444d74d7a0b4fcf"
+}

@@ -47,21 +47,38 @@ pub async fn upload_experiment(
             )
         })?;
 
-    // Insert test run
-    let test_run_id = Uuid::new_v4();
+    // Use provided experiment ID
+    let test_run_id = request.experiment_run.id;
     let status_str = match request.experiment_run.status {
         llm_benchmark_types::ExperimentStatus::Pending => "pending",
-        llm_benchmark_types::ExperimentStatus::Running => "running", 
+        llm_benchmark_types::ExperimentStatus::Running => "running",
         llm_benchmark_types::ExperimentStatus::Completed => "completed",
         llm_benchmark_types::ExperimentStatus::Failed => "failed",
         llm_benchmark_types::ExperimentStatus::Cancelled => "cancelled",
     };
 
+    // Insert or update test run (UPSERT)
     sqlx::query!(
         r#"
-        INSERT INTO test_runs (id, model_name, quantization, backend, backend_version, 
-                              hardware_profile_id, timestamp, status, notes)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO test_runs (id, model_name, quantization, backend, backend_version,
+                              hardware_profile_id, timestamp, status, notes,
+                              concurrent_requests, max_context_length, load_pattern,
+                              dataset_name, gpu_power_limit_watts)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        ON CONFLICT (id) DO UPDATE SET
+            model_name = EXCLUDED.model_name,
+            quantization = EXCLUDED.quantization,
+            backend = EXCLUDED.backend,
+            backend_version = EXCLUDED.backend_version,
+            hardware_profile_id = EXCLUDED.hardware_profile_id,
+            timestamp = EXCLUDED.timestamp,
+            status = EXCLUDED.status,
+            notes = EXCLUDED.notes,
+            concurrent_requests = EXCLUDED.concurrent_requests,
+            max_context_length = EXCLUDED.max_context_length,
+            load_pattern = EXCLUDED.load_pattern,
+            dataset_name = EXCLUDED.dataset_name,
+            gpu_power_limit_watts = EXCLUDED.gpu_power_limit_watts
         "#,
         test_run_id,
         request.experiment_run.model_name,
@@ -71,7 +88,12 @@ pub async fn upload_experiment(
         hardware_profile_id,
         request.experiment_run.timestamp,
         status_str,
-        request.experiment_run.notes
+        request.experiment_run.notes,
+        request.experiment_run.concurrent_requests,
+        request.experiment_run.max_context_length,
+        request.experiment_run.load_pattern,
+        request.experiment_run.dataset_name,
+        request.experiment_run.gpu_power_limit_watts
     )
     .execute(&mut *tx)
     .await
@@ -79,6 +101,22 @@ pub async fn upload_experiment(
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(ErrorResponse::new(format!("Failed to insert test run: {}", e))),
+        )
+    })?;
+
+    // Delete existing performance metrics for this test run to allow re-upload
+    sqlx::query!(
+        r#"
+        DELETE FROM performance_metrics WHERE test_run_id = $1
+        "#,
+        test_run_id
+    )
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse::new(format!("Failed to delete old performance metrics: {}", e))),
         )
     })?;
 
@@ -103,6 +141,20 @@ pub async fn upload_experiment(
             )
         })?;
     }
+
+    // Delete existing benchmark scores for this test run to allow re-upload
+    sqlx::query!("DELETE FROM mmlu_scores WHERE test_run_id = $1", test_run_id)
+        .execute(&mut *tx).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(format!("Failed to delete old MMLU scores: {}", e)))))?;
+    sqlx::query!("DELETE FROM gsm8k_scores WHERE test_run_id = $1", test_run_id)
+        .execute(&mut *tx).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(format!("Failed to delete old GSM8K scores: {}", e)))))?;
+    sqlx::query!("DELETE FROM humaneval_scores WHERE test_run_id = $1", test_run_id)
+        .execute(&mut *tx).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(format!("Failed to delete old HumanEval scores: {}", e)))))?;
+    sqlx::query!("DELETE FROM hellaswag_scores WHERE test_run_id = $1", test_run_id)
+        .execute(&mut *tx).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(format!("Failed to delete old HellaSwag scores: {}", e)))))?;
+    sqlx::query!("DELETE FROM truthfulqa_scores WHERE test_run_id = $1", test_run_id)
+        .execute(&mut *tx).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(format!("Failed to delete old TruthfulQA scores: {}", e)))))?;
+    sqlx::query!("DELETE FROM generic_benchmark_scores WHERE test_run_id = $1", test_run_id)
+        .execute(&mut *tx).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(ErrorResponse::new(format!("Failed to delete old generic scores: {}", e)))))?;
 
     // Insert benchmark scores
     for score in &request.experiment_run.benchmark_scores {

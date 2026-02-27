@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, test_run_id, problems_solved, total_problems, timestamp, context, created_at \n         FROM gsm8k_scores WHERE test_run_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "test_run_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "problems_solved",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 3,
+        "name": "total_problems",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "context",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "ebaa778a42e367c96a0e2a405dffdc10187bb2ef9256e5e1be0d8c40abbe8b62"
+}
