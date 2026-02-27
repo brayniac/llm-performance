@@ -9,7 +9,8 @@ use axum::{
 use uuid::Uuid;
 
 use llm_benchmark_types::{
-    UploadExperimentRequest, UploadExperimentResponse, ErrorResponse, Validate
+    UploadExperimentRequest, UploadExperimentResponse, ErrorResponse, Validate,
+    normalize_quantization,
 };
 
 use crate::AppState;
@@ -47,6 +48,9 @@ pub async fn upload_experiment(
             )
         })?;
 
+    // Normalize quantization (strip redundant -GGUF suffix, etc.)
+    let quantization = normalize_quantization(&request.experiment_run.quantization);
+
     // Use provided experiment ID
     let test_run_id = request.experiment_run.id;
     let status_str = match request.experiment_run.status {
@@ -82,7 +86,7 @@ pub async fn upload_experiment(
         "#,
         test_run_id,
         request.experiment_run.model_name,
-        request.experiment_run.quantization,
+        quantization,
         request.experiment_run.backend,
         request.experiment_run.backend_version,
         hardware_profile_id,

@@ -16,15 +16,23 @@ use crate::AppState;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ModelHardwareAnalysis {
     pub model_name: String,
-    pub hardware_summary: String,
+    pub gpu_model: String,
     pub total_configurations: usize,
+    pub backends: Vec<BackendGroup>,
     pub quantizations: Vec<QuantizationSummary>,
     pub heatmap_data: HeatmapData,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct BackendGroup {
+    pub backend: String,
+    pub quantizations: Vec<QuantizationSummary>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuantizationSummary {
     pub quantization: String,
+    pub backend: String,
     pub best_speed: f64,
     pub best_ttft: Option<f64>,
     pub best_tokens_per_kwh: Option<f64>,
@@ -38,7 +46,8 @@ pub struct HeatmapData {
     pub quantizations: Vec<String>,
     pub power_limits: Vec<i32>,
     pub concurrent_requests: Vec<i32>,
-    // Map: quantization -> power_limit -> concurrent_requests -> metric
+    // Map: key -> power_limit -> concurrent_requests -> metric
+    // Key is "backend||quantization" composite key
     pub speed_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>>,
     pub ttft_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>>,
     pub tpot_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>>,
@@ -70,10 +79,10 @@ fn quantization_sort_key(quant: &str) -> (u8, String) {
 
 /// Get model+hardware analysis data for visualizations
 pub async fn get_model_hardware_analysis(
-    Path((model_name, hardware_hash)): Path<(String, String)>,
+    Path((model_name, gpu_model_param)): Path<(String, String)>,
     State(state): State<AppState>,
 ) -> Result<Json<ModelHardwareAnalysis>, (StatusCode, Json<ErrorResponse>)> {
-    // Decode URL-encoded model name and hardware hash
+    // Decode URL-encoded model name and gpu model
     let model_name = urlencoding::decode(&model_name)
         .map_err(|e| {
             (
@@ -83,37 +92,39 @@ pub async fn get_model_hardware_analysis(
         })?
         .to_string();
 
-    let hardware_summary = urlencoding::decode(&hardware_hash)
+    let gpu_model = urlencoding::decode(&gpu_model_param)
         .map_err(|e| {
             (
                 StatusCode::BAD_REQUEST,
-                Json(ErrorResponse::new(format!("Invalid hardware hash encoding: {}", e))),
+                Json(ErrorResponse::new(format!("Invalid GPU model encoding: {}", e))),
             )
         })?
         .to_string();
 
-    // Get the most recent test run for each unique configuration (quantization, power_limit, concurrent_requests)
+    // Get the most recent test run for each unique configuration (backend, quantization, power_limit, concurrent_requests)
     let test_runs = sqlx::query!(
         r#"
         WITH ranked_runs AS (
             SELECT
                 tr.id,
+                tr.backend,
                 tr.quantization,
                 tr.concurrent_requests,
                 tr.gpu_power_limit_watts,
                 tr.timestamp,
                 ROW_NUMBER() OVER (
-                    PARTITION BY tr.quantization, tr.gpu_power_limit_watts, tr.concurrent_requests
+                    PARTITION BY tr.backend, tr.quantization, tr.gpu_power_limit_watts, tr.concurrent_requests
                     ORDER BY tr.timestamp DESC
                 ) as rn
             FROM test_runs tr
             JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id
             WHERE tr.model_name = $1
-                AND CONCAT(hp.gpu_model, ' / ', hp.cpu_arch) = $2
+                AND hp.gpu_model = $2
                 AND tr.status = 'completed'
         )
         SELECT
             rr.id as "id!",
+            rr.backend as "backend!",
             rr.quantization as "quantization!",
             rr.concurrent_requests as "concurrent_requests?",
             rr.gpu_power_limit_watts as "gpu_power_limit_watts?",
@@ -136,7 +147,7 @@ pub async fn get_model_hardware_analysis(
         WHERE rr.rn = 1
         "#,
         model_name,
-        hardware_summary
+        gpu_model
     )
     .fetch_all(&state.db)
     .await
@@ -156,13 +167,14 @@ pub async fn get_model_hardware_analysis(
         ));
     }
 
-    // Aggregate data by quantization
+    // Aggregate data by (backend, quantization)
     // Tuple: (power_limit, concurrent, speed, ttft, tpot, itl, gpu_power, tokens_per_kwh)
-    let mut quant_map: HashMap<String, Vec<(i32, i32, f64, Option<f64>, Option<f64>, Option<f64>, Option<f64>, Option<f64>)>> = HashMap::new();
+    let mut quant_map: HashMap<(String, String), Vec<(i32, i32, f64, Option<f64>, Option<f64>, Option<f64>, Option<f64>, Option<f64>)>> = HashMap::new();
     let mut all_power_limits = std::collections::BTreeSet::new();
     let mut all_concurrent_requests = std::collections::BTreeSet::new();
 
     for run in test_runs.iter() {
+        let backend = run.backend.clone();
         let quant = run.quantization.clone();
         let power_limit = run.gpu_power_limit_watts.unwrap_or(0);
         let concurrent = run.concurrent_requests.unwrap_or(1);
@@ -187,14 +199,14 @@ pub async fn get_model_hardware_analysis(
         all_concurrent_requests.insert(concurrent);
 
         quant_map
-            .entry(quant)
+            .entry((backend, quant))
             .or_insert_with(Vec::new)
             .push((power_limit, concurrent, speed, ttft, tpot, itl, gpu_power, tokens_per_kwh));
     }
 
-    // Get quality scores for each quantization
+    // Get quality scores for each quantization and build summaries
     let mut quantization_summaries = Vec::new();
-    for (quant, runs) in quant_map.iter() {
+    for ((backend, quant), runs) in quant_map.iter() {
         // Get category-level scores
         let category_scores_rows = sqlx::query!(
             r#"
@@ -236,6 +248,7 @@ pub async fn get_model_hardware_analysis(
 
         quantization_summaries.push(QuantizationSummary {
             quantization: quant.clone(),
+            backend: backend.clone(),
             best_speed,
             best_ttft,
             best_tokens_per_kwh,
@@ -245,24 +258,41 @@ pub async fn get_model_hardware_analysis(
         });
     }
 
-    // Sort quantization summaries by logical order
+    // Sort by backend then by quantization logical order
     quantization_summaries.sort_by(|a, b| {
-        quantization_sort_key(&a.quantization).cmp(&quantization_sort_key(&b.quantization))
+        a.backend.cmp(&b.backend)
+            .then_with(|| quantization_sort_key(&a.quantization).cmp(&quantization_sort_key(&b.quantization)))
     });
 
-    // Build heatmap data
+    // Group into BackendGroups
+    let mut backends: Vec<BackendGroup> = Vec::new();
+    for summary in quantization_summaries.iter() {
+        if let Some(last) = backends.last_mut() {
+            if last.backend == summary.backend {
+                last.quantizations.push(summary.clone());
+                continue;
+            }
+        }
+        backends.push(BackendGroup {
+            backend: summary.backend.clone(),
+            quantizations: vec![summary.clone()],
+        });
+    }
+
+    // Build heatmap data using composite keys "backend||quantization"
     let mut speed_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
     let mut ttft_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
     let mut tpot_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
     let mut itl_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
     let mut efficiency_data: HashMap<String, HashMap<i32, HashMap<i32, f64>>> = HashMap::new();
 
-    for (quant, runs) in quant_map.iter() {
-        let quant_speed_map = speed_data.entry(quant.clone()).or_insert_with(HashMap::new);
-        let quant_ttft_map = ttft_data.entry(quant.clone()).or_insert_with(HashMap::new);
-        let quant_tpot_map = tpot_data.entry(quant.clone()).or_insert_with(HashMap::new);
-        let quant_itl_map = itl_data.entry(quant.clone()).or_insert_with(HashMap::new);
-        let quant_efficiency_map = efficiency_data.entry(quant.clone()).or_insert_with(HashMap::new);
+    for ((backend, quant), runs) in quant_map.iter() {
+        let composite_key = format!("{}||{}", backend, quant);
+        let quant_speed_map = speed_data.entry(composite_key.clone()).or_insert_with(HashMap::new);
+        let quant_ttft_map = ttft_data.entry(composite_key.clone()).or_insert_with(HashMap::new);
+        let quant_tpot_map = tpot_data.entry(composite_key.clone()).or_insert_with(HashMap::new);
+        let quant_itl_map = itl_data.entry(composite_key.clone()).or_insert_with(HashMap::new);
+        let quant_efficiency_map = efficiency_data.entry(composite_key).or_insert_with(HashMap::new);
 
         for (power_limit, concurrent, speed, ttft, tpot, itl, _gpu_power, tokens_per_kwh) in runs {
             quant_speed_map
@@ -300,12 +330,14 @@ pub async fn get_model_hardware_analysis(
         }
     }
 
-    // Collect and sort quantizations
-    let mut quantizations: Vec<String> = quant_map.keys().cloned().collect();
-    quantizations.sort_by(|a, b| quantization_sort_key(a).cmp(&quantization_sort_key(b)));
+    // Collect and sort composite keys for heatmap quantizations list
+    let mut heatmap_quantizations: Vec<String> = quant_map.keys()
+        .map(|(backend, quant)| format!("{}||{}", backend, quant))
+        .collect();
+    heatmap_quantizations.sort();
 
     let heatmap_data = HeatmapData {
-        quantizations,
+        quantizations: heatmap_quantizations,
         power_limits: all_power_limits.into_iter().collect(),
         concurrent_requests: all_concurrent_requests.into_iter().collect(),
         speed_data,
@@ -317,28 +349,10 @@ pub async fn get_model_hardware_analysis(
 
     Ok(Json(ModelHardwareAnalysis {
         model_name: model_name.clone(),
-        hardware_summary,
+        gpu_model,
         total_configurations: test_runs.len(),
+        backends,
         quantizations: quantization_summaries,
         heatmap_data,
     }))
-}
-
-async fn get_hardware_summary_from_hash(
-    db: &sqlx::PgPool,
-    _hardware_hash: &str,
-) -> Result<String, sqlx::Error> {
-    // For now, just get the first hardware profile's summary
-    // In the future, we could implement a proper hash-based lookup
-    let result = sqlx::query!(
-        r#"
-        SELECT CONCAT(gpu_model, ' / ', cpu_arch) as summary
-        FROM hardware_profiles
-        LIMIT 1
-        "#
-    )
-    .fetch_one(db)
-    .await?;
-
-    Ok(result.summary.unwrap_or_else(|| "Unknown".to_string()))
 }

@@ -992,10 +992,10 @@ fn extract_model_info_from_path(model_path: &str) -> Result<(String, String)> {
             Regex::new(r"\.([A-Z][\dA-Z_]+)$").unwrap(),  // Matches .Q4_0, .Q4_K_M, .FP16, .MXFP4, .IQ4_XS, etc.
         ];
 
-        let mut quantization = "F16-GGUF".to_string();
+        let mut quantization = "F16".to_string();
         for pattern in &gguf_quant_patterns {
             if let Some(caps) = pattern.captures(&filename) {
-                quantization = format!("{}-GGUF", caps.get(1).unwrap().as_str());
+                quantization = caps.get(1).unwrap().as_str().to_string();
                 break;
             }
         }
@@ -3044,8 +3044,64 @@ fn build_performance_metrics(result: &InferenceServerResult, timestamp: DateTime
             context: None,
         },
         PerformanceMetric {
+            metric_name: "tpot_p50_ms".to_string(),
+            value: result.latency.tpot_p50_ms,
+            unit: "ms".to_string(),
+            timestamp,
+            context: None,
+        },
+        PerformanceMetric {
+            metric_name: "tpot_p90_ms".to_string(),
+            value: result.latency.tpot_p90_ms,
+            unit: "ms".to_string(),
+            timestamp,
+            context: None,
+        },
+        PerformanceMetric {
+            metric_name: "tpot_p95_ms".to_string(),
+            value: result.latency.tpot_p95_ms,
+            unit: "ms".to_string(),
+            timestamp,
+            context: None,
+        },
+        PerformanceMetric {
+            metric_name: "tpot_p99_ms".to_string(),
+            value: result.latency.tpot_p99_ms,
+            unit: "ms".to_string(),
+            timestamp,
+            context: None,
+        },
+        PerformanceMetric {
             metric_name: "itl_mean_ms".to_string(),
             value: result.latency.itl_mean_ms,
+            unit: "ms".to_string(),
+            timestamp,
+            context: None,
+        },
+        PerformanceMetric {
+            metric_name: "itl_p50_ms".to_string(),
+            value: result.latency.itl_p50_ms,
+            unit: "ms".to_string(),
+            timestamp,
+            context: None,
+        },
+        PerformanceMetric {
+            metric_name: "itl_p90_ms".to_string(),
+            value: result.latency.itl_p90_ms,
+            unit: "ms".to_string(),
+            timestamp,
+            context: None,
+        },
+        PerformanceMetric {
+            metric_name: "itl_p95_ms".to_string(),
+            value: result.latency.itl_p95_ms,
+            unit: "ms".to_string(),
+            timestamp,
+            context: None,
+        },
+        PerformanceMetric {
+            metric_name: "itl_p99_ms".to_string(),
+            value: result.latency.itl_p99_ms,
             unit: "ms".to_string(),
             timestamp,
             context: None,

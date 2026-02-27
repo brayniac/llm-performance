@@ -143,12 +143,10 @@
 
       // Now fetch model+hardware analysis data
       const modelName = encodeURIComponent(detailData.config.model);
-      // Create a simple hash from the hardware summary for the URL
-      const hardwareSummary = `${detailData.system_info.gpu_model} / ${detailData.system_info.cpu_arch}`;
-      const hardwareHash = encodeURIComponent(hardwareSummary);
+      const gpuModel = encodeURIComponent(detailData.system_info.gpu_model);
 
-      console.log('Fetching analysis data for:', modelName, hardwareHash);
-      const analysisResponse = await fetch(`/api/model-hardware-analysis/${modelName}/${hardwareHash}`);
+      console.log('Fetching analysis data for:', modelName, gpuModel);
+      const analysisResponse = await fetch(`/api/model-hardware-analysis/${modelName}/${gpuModel}`);
 
       if (analysisResponse.ok) {
         analysisData = await analysisResponse.json();
@@ -217,7 +215,7 @@
       <div class="config-header">
         <h1 class="config-title">{analysisData.model_name}</h1>
         <div class="config-subtitle">
-          {analysisData.hardware_summary}
+          {analysisData.gpu_model}
         </div>
         <div class="test-date">
           {analysisData.total_configurations} configuration{analysisData.total_configurations !== 1 ? 's' : ''} tested
@@ -251,39 +249,44 @@
     <!-- Quantization Comparison -->
     <div class="quantization-comparison">
           <h3>Quantization Comparison</h3>
-          <div class="quant-grid">
-            {#each analysisData.quantizations as quant}
-              <div class="quant-card">
-                <div class="quant-header">{quant.quantization}</div>
-                <div class="quant-stats">
-                  <div class="stat">
-                    <span class="stat-label">Best Speed</span>
-                    <span class="stat-value">{quant.best_speed.toFixed(1)} tok/s</span>
-                  </div>
-                  {#if quant.best_ttft}
-                    <div class="stat">
-                      <span class="stat-label">Best TTFT</span>
-                      <span class="stat-value">{quant.best_ttft.toFixed(2)} ms</span>
+          {#each analysisData.backends as backendGroup}
+            <div class="backend-section">
+              <h4 class="backend-header">{backendGroup.backend}</h4>
+              <div class="quant-grid">
+                {#each backendGroup.quantizations as quant}
+                  <div class="quant-card">
+                    <div class="quant-header">{quant.quantization}</div>
+                    <div class="quant-stats">
+                      <div class="stat">
+                        <span class="stat-label">Best Speed</span>
+                        <span class="stat-value">{quant.best_speed.toFixed(1)} tok/s</span>
+                      </div>
+                      {#if quant.best_ttft}
+                        <div class="stat">
+                          <span class="stat-label">Best TTFT</span>
+                          <span class="stat-value">{quant.best_ttft.toFixed(2)} ms</span>
+                        </div>
+                      {/if}
+                      {#if quant.best_tokens_per_kwh}
+                        <div class="stat">
+                          <span class="stat-label">Best Efficiency</span>
+                          <span class="stat-value">{(quant.best_tokens_per_kwh / 1000000).toFixed(2)}M tok/kWh</span>
+                        </div>
+                      {/if}
+                      <div class="stat">
+                        <span class="stat-label">Quality Score</span>
+                        <span class="stat-value">{quant.quality_score.toFixed(1)}%</span>
+                      </div>
+                      <div class="stat">
+                        <span class="stat-label">Configs Tested</span>
+                        <span class="stat-value">{quant.configuration_count}</span>
+                      </div>
                     </div>
-                  {/if}
-                  {#if quant.best_tokens_per_kwh}
-                    <div class="stat">
-                      <span class="stat-label">Best Efficiency</span>
-                      <span class="stat-value">{(quant.best_tokens_per_kwh / 1000000).toFixed(2)}M tok/kWh</span>
-                    </div>
-                  {/if}
-                  <div class="stat">
-                    <span class="stat-label">Quality Score</span>
-                    <span class="stat-value">{quant.quality_score.toFixed(1)}%</span>
                   </div>
-                  <div class="stat">
-                    <span class="stat-label">Configs Tested</span>
-                    <span class="stat-value">{quant.configuration_count}</span>
-                  </div>
-                </div>
+                {/each}
               </div>
-            {/each}
-          </div>
+            </div>
+          {/each}
         </div>
 
         <!-- Multi-Quantization Radar Chart -->
@@ -294,62 +297,73 @@
           <h3>Performance Heatmaps</h3>
           <p class="heatmap-description">Explore how performance varies with GPU power limit and concurrency levels</p>
 
-          {#each analysisData.quantizations as quant}
-            <div class="heatmap-group">
-              <h4>{quant.quantization} Performance</h4>
-              <div class="heatmap-triple">
-                <div class="heatmap-wrapper">
-                  <ContextConcurrencyHeatmap
-                    heatmapData={analysisData.heatmap_data}
-                    quantization={quant.quantization}
-                    metric="speed"
-                    globalMin={speedGlobalMin}
-                    globalMax={speedGlobalMax}
-                  />
+          {#each analysisData.backends as backendGroup}
+            <div class="backend-section">
+              <h4 class="backend-header">{backendGroup.backend}</h4>
+              {#each backendGroup.quantizations as quant}
+                {@const compositeKey = `${backendGroup.backend}||${quant.quantization}`}
+                <div class="heatmap-group">
+                  <h4>{quant.quantization} Performance</h4>
+                  <div class="heatmap-triple">
+                    <div class="heatmap-wrapper">
+                      <ContextConcurrencyHeatmap
+                        heatmapData={analysisData.heatmap_data}
+                        quantization={compositeKey}
+                        displayLabel={quant.quantization}
+                        metric="speed"
+                        globalMin={speedGlobalMin}
+                        globalMax={speedGlobalMax}
+                      />
+                    </div>
+                    <div class="heatmap-wrapper">
+                      <ContextConcurrencyHeatmap
+                        heatmapData={analysisData.heatmap_data}
+                        quantization={compositeKey}
+                        displayLabel={quant.quantization}
+                        metric="ttft"
+                        globalMin={ttftGlobalMin}
+                        globalMax={ttftGlobalMax}
+                      />
+                    </div>
+                    {#if analysisData.heatmap_data.tpot_data}
+                      <div class="heatmap-wrapper">
+                        <ContextConcurrencyHeatmap
+                          heatmapData={analysisData.heatmap_data}
+                          quantization={compositeKey}
+                          displayLabel={quant.quantization}
+                          metric="tpot"
+                          globalMin={tpotGlobalMin}
+                          globalMax={tpotGlobalMax}
+                        />
+                      </div>
+                    {/if}
+                    {#if analysisData.heatmap_data.itl_data}
+                      <div class="heatmap-wrapper">
+                        <ContextConcurrencyHeatmap
+                          heatmapData={analysisData.heatmap_data}
+                          quantization={compositeKey}
+                          displayLabel={quant.quantization}
+                          metric="itl"
+                          globalMin={itlGlobalMin}
+                          globalMax={itlGlobalMax}
+                        />
+                      </div>
+                    {/if}
+                    {#if analysisData.heatmap_data.efficiency_data}
+                      <div class="heatmap-wrapper">
+                        <ContextConcurrencyHeatmap
+                          heatmapData={analysisData.heatmap_data}
+                          quantization={compositeKey}
+                          displayLabel={quant.quantization}
+                          metric="efficiency"
+                          globalMin={efficiencyGlobalMin}
+                          globalMax={efficiencyGlobalMax}
+                        />
+                      </div>
+                    {/if}
+                  </div>
                 </div>
-                <div class="heatmap-wrapper">
-                  <ContextConcurrencyHeatmap
-                    heatmapData={analysisData.heatmap_data}
-                    quantization={quant.quantization}
-                    metric="ttft"
-                    globalMin={ttftGlobalMin}
-                    globalMax={ttftGlobalMax}
-                  />
-                </div>
-                {#if analysisData.heatmap_data.tpot_data}
-                  <div class="heatmap-wrapper">
-                    <ContextConcurrencyHeatmap
-                      heatmapData={analysisData.heatmap_data}
-                      quantization={quant.quantization}
-                      metric="tpot"
-                      globalMin={tpotGlobalMin}
-                      globalMax={tpotGlobalMax}
-                    />
-                  </div>
-                {/if}
-                {#if analysisData.heatmap_data.itl_data}
-                  <div class="heatmap-wrapper">
-                    <ContextConcurrencyHeatmap
-                      heatmapData={analysisData.heatmap_data}
-                      quantization={quant.quantization}
-                      metric="itl"
-                      globalMin={itlGlobalMin}
-                      globalMax={itlGlobalMax}
-                    />
-                  </div>
-                {/if}
-                {#if analysisData.heatmap_data.efficiency_data}
-                  <div class="heatmap-wrapper">
-                    <ContextConcurrencyHeatmap
-                      heatmapData={analysisData.heatmap_data}
-                      quantization={quant.quantization}
-                      metric="efficiency"
-                      globalMin={efficiencyGlobalMin}
-                      globalMax={efficiencyGlobalMax}
-                    />
-                  </div>
-                {/if}
-              </div>
+              {/each}
             </div>
           {/each}
         </div>
@@ -726,6 +740,21 @@
   .heatmaps-section h3 {
     margin: 0 0 0.5rem 0;
     color: var(--color-text-primary);
+  }
+
+  .backend-section {
+    margin-bottom: 2rem;
+  }
+
+  .backend-header {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin: 0 0 1rem 0;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid var(--color-accent);
+    background: var(--color-bg-secondary);
+    border-radius: 0 6px 6px 0;
   }
 
   .heatmap-description {

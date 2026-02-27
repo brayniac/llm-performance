@@ -350,8 +350,20 @@ impl Validate for QualityScore {
 
 // Helper functions for validation
 
+/// Normalize a quantization string by stripping redundant suffixes like `-GGUF`.
+/// The GGUF format is already implied by the backend (llama.cpp), so `-GGUF`
+/// suffixes on quant names like `Q8_0-GGUF` are redundant and cause mismatches.
+pub fn normalize_quantization(quantization: &str) -> String {
+    let stripped = quantization
+        .strip_suffix("-GGUF")
+        .or_else(|| quantization.strip_suffix("-gguf"))
+        .unwrap_or(quantization);
+    stripped.to_string()
+}
+
 fn is_valid_quantization(quantization: &str) -> bool {
-    let quant_upper = quantization.to_uppercase();
+    let normalized = normalize_quantization(quantization);
+    let quant_upper = normalized.to_uppercase();
 
     // Check exact matches first
     let exact_match = matches!(
@@ -410,6 +422,7 @@ mod tests {
     use super::*;
     use crate::{HardwareConfig, PerformanceMetric};
     use chrono::Utc;
+    use uuid::Uuid;
 
     #[test]
     fn test_valid_quantization() {
@@ -439,9 +452,25 @@ mod tests {
         assert!(is_valid_quantization("q4_k_m"));
         assert!(is_valid_quantization("iq4_xs"));
         
+        // Test -GGUF suffix is accepted (normalized away)
+        assert!(is_valid_quantization("Q8_0-GGUF"));
+        assert!(is_valid_quantization("Q4_K_M-GGUF"));
+        assert!(is_valid_quantization("FP16-GGUF"));
+        assert!(is_valid_quantization("IQ4_XS-gguf"));
+
         // Test invalid formats
         assert!(!is_valid_quantization("INVALID"));
         assert!(!is_valid_quantization("Q3_K_XL"));
+    }
+
+    #[test]
+    fn test_normalize_quantization() {
+        assert_eq!(normalize_quantization("Q8_0-GGUF"), "Q8_0");
+        assert_eq!(normalize_quantization("Q4_K_M-GGUF"), "Q4_K_M");
+        assert_eq!(normalize_quantization("FP16-gguf"), "FP16");
+        assert_eq!(normalize_quantization("Q8_0"), "Q8_0");
+        assert_eq!(normalize_quantization("BF16"), "BF16");
+        assert_eq!(normalize_quantization("W4A16-AWQ"), "W4A16-AWQ");
     }
 
     #[test]
@@ -486,6 +515,7 @@ mod tests {
         };
 
         let mut experiment = ExperimentRun::new(
+            Uuid::new_v4(),
             "Test Model".to_string(),
             "FP16".to_string(),
             "llama.cpp".to_string(),

@@ -150,7 +150,9 @@ pub async fn get_grouped_performance(
     // Derive optimization goal from sort_by parameter
     let sort_by = params.sort_by.as_deref().unwrap_or("quality");
 
-    // Group by model → hardware → configs
+    // Group by model → hardware platform → configs
+    // For GPU workloads, group by gpu_model alone (CPU is irrelevant)
+    // For CPU-only workloads, group by cpu_model
     let mut model_hardware_groups: HashMap<String, HashMap<String, Vec<QuantizationPerformance>>> = HashMap::new();
     let mut total_platforms_by_model: HashMap<String, usize> = HashMap::new();
 
@@ -246,11 +248,18 @@ pub async fn get_grouped_performance(
             tokens_per_kwh,
         };
 
-        // Group by model → hardware
+        // Group by model → hardware platform
+        // Use gpu_model as key for GPU workloads, cpu_model for CPU-only
+        let platform_key = if gpu_model == "CPU Only" || gpu_model == "N/A" || gpu_model.starts_with("CPU") {
+            cpu_model.clone()
+        } else {
+            gpu_model.clone()
+        };
+
         model_hardware_groups
             .entry(model_name.clone())
             .or_insert_with(HashMap::new)
-            .entry(hardware.clone())
+            .entry(platform_key)
             .or_insert_with(Vec::new)
             .push(config);
     }

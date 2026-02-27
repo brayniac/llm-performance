@@ -7,6 +7,7 @@
   export let heatmapData;
   export let quantization;
   export let metric = 'speed'; // 'speed', 'ttft', 'tpot', 'itl', or 'efficiency'
+  export let displayLabel = null; // Optional: label to show in title instead of raw quantization key
   export let globalMin = null; // Optional: unified min across all quantizations
   export let globalMax = null; // Optional: unified max across all quantizations
 
@@ -96,7 +97,7 @@
 
     const option = {
       title: {
-        text: `${metric === 'speed' ? 'Token/s' : metric === 'ttft' ? 'TTFT (ms)' : metric === 'tpot' ? 'TPOT (ms)' : metric === 'itl' ? 'ITL (ms)' : 'Million Tokens/kWh'} - ${quantization}`,
+        text: `${metric === 'speed' ? 'Token/s' : metric === 'ttft' ? 'TTFT (ms)' : metric === 'tpot' ? 'TPOT (ms)' : metric === 'itl' ? 'ITL (ms)' : 'Million Tokens/kWh'} - ${displayLabel || quantization}`,
         left: 'center',
         textStyle: { color: c.title }
       },

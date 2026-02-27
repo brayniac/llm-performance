@@ -60,7 +60,7 @@
         }
       },
       legend: {
-        data: quantsWithScores.map(quant => quant.quantization),
+        data: quantsWithScores.map(quant => quant.backend ? `${quant.quantization} (${quant.backend})` : quant.quantization),
         bottom: 10,
         type: 'scroll',
         textStyle: { color: c.text }
@@ -110,7 +110,7 @@
           const color = c.palette[idx % c.palette.length];
           return {
             value: categories.map(cat => quant.category_scores[cat] || 0),
-            name: quant.quantization,
+            name: quant.backend ? `${quant.quantization} (${quant.backend})` : quant.quantization,
             lineStyle: { color: color, width: 2 },
             areaStyle: { opacity: 0.05, color: color },
             itemStyle: { color: color }

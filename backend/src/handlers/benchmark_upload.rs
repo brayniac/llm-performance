@@ -9,8 +9,9 @@ use axum::{
 use uuid::Uuid;
 
 use llm_benchmark_types::{
-    UploadBenchmarkRequest, UploadBenchmarkResponse, 
+    UploadBenchmarkRequest, UploadBenchmarkResponse,
     ModelVariant, benchmarks::BenchmarkScoreType,
+    normalize_quantization,
 };
 
 use crate::AppState;
@@ -33,11 +34,14 @@ pub async fn upload_benchmarks(
         )
     })?;
 
+    // Normalize quantization (strip redundant -GGUF suffix, etc.)
+    let quantization = normalize_quantization(&request.quantization);
+
     // Find or create model variant
     let model_variant_id = find_or_create_model_variant(
         &mut tx,
         &request.model_name,
-        &request.quantization,
+        &quantization,
     )
     .await
     .map_err(|e| {
