@@ -88,7 +88,8 @@
         Object.values(quantData).forEach(powerLimitData => {
           Object.values(powerLimitData).forEach(value => {
             if (value !== undefined && value !== null) {
-              allEfficiencyValues.push(value);
+              // Scale to millions to match display values in heatmap component
+              allEfficiencyValues.push(value / 1000000);
             }
           });
         });

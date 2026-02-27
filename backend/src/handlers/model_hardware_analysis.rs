@@ -101,50 +101,36 @@ pub async fn get_model_hardware_analysis(
         })?
         .to_string();
 
-    // Get the most recent test run for each unique configuration (backend, quantization, power_limit, concurrent_requests)
+    // Aggregate metrics across all runs for each unique configuration (backend, quantization, power_limit, concurrent_requests)
+    // Using GROUP BY instead of ROW_NUMBER to combine metrics from runs that may have different metrics available
     let test_runs = sqlx::query!(
         r#"
-        WITH ranked_runs AS (
-            SELECT
-                tr.id,
-                tr.backend,
-                tr.quantization,
-                tr.concurrent_requests,
-                tr.gpu_power_limit_watts,
-                tr.timestamp,
-                ROW_NUMBER() OVER (
-                    PARTITION BY tr.backend, tr.quantization, tr.gpu_power_limit_watts, tr.concurrent_requests
-                    ORDER BY tr.timestamp DESC
-                ) as rn
-            FROM test_runs tr
-            JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id
-            WHERE tr.model_name = $1
-                AND hp.gpu_model = $2
-                AND tr.status = 'completed'
-        )
         SELECT
-            rr.id as "id!",
-            rr.backend as "backend!",
-            rr.quantization as "quantization!",
-            rr.concurrent_requests as "concurrent_requests?",
-            rr.gpu_power_limit_watts as "gpu_power_limit_watts?",
-            pm_speed.value as "tokens_per_second?",
-            pm_ttft.value as "ttft?",
-            pm_tpot.value as "tpot?",
-            pm_itl.value as "itl?",
-            pm_power.value as "gpu_power_watts?"
-        FROM ranked_runs rr
+            tr.backend as "backend!",
+            tr.quantization as "quantization!",
+            tr.concurrent_requests as "concurrent_requests?",
+            tr.gpu_power_limit_watts as "gpu_power_limit_watts?",
+            MAX(pm_speed.value) as "tokens_per_second?",
+            MIN(pm_ttft.value) as "ttft?",
+            MIN(pm_tpot.value) as "tpot?",
+            MIN(pm_itl.value) as "itl?",
+            AVG(pm_power.value) as "gpu_power_watts?"
+        FROM test_runs tr
+        JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id
         LEFT JOIN performance_metrics pm_speed
-            ON rr.id = pm_speed.test_run_id AND pm_speed.metric_name = 'tokens_per_second'
+            ON tr.id = pm_speed.test_run_id AND pm_speed.metric_name = 'tokens_per_second'
         LEFT JOIN performance_metrics pm_ttft
-            ON rr.id = pm_ttft.test_run_id AND pm_ttft.metric_name = 'ttft_p95_ms'
+            ON tr.id = pm_ttft.test_run_id AND pm_ttft.metric_name = 'ttft_p95_ms'
         LEFT JOIN performance_metrics pm_tpot
-            ON rr.id = pm_tpot.test_run_id AND pm_tpot.metric_name = 'tpot_p95_ms'
+            ON tr.id = pm_tpot.test_run_id AND pm_tpot.metric_name = 'tpot_p95_ms'
         LEFT JOIN performance_metrics pm_itl
-            ON rr.id = pm_itl.test_run_id AND pm_itl.metric_name = 'itl_p95_ms'
+            ON tr.id = pm_itl.test_run_id AND pm_itl.metric_name = 'itl_p95_ms'
         LEFT JOIN performance_metrics pm_power
-            ON rr.id = pm_power.test_run_id AND pm_power.metric_name = 'gpu_power_watts'
-        WHERE rr.rn = 1
+            ON tr.id = pm_power.test_run_id AND pm_power.metric_name = 'gpu_power_watts'
+        WHERE tr.model_name = $1
+            AND hp.gpu_model = $2
+            AND tr.status = 'completed'
+        GROUP BY tr.backend, tr.quantization, tr.concurrent_requests, tr.gpu_power_limit_watts
         "#,
         model_name,
         gpu_model
