@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT ts.truthful_score, ts.total_questions\n        FROM truthfulqa_scores_v2 ts\n        JOIN model_variants mv ON ts.model_variant_id = mv.id\n        WHERE mv.model_name = $1 AND mv.quantization = $2\n        LIMIT 1\n        ",
+  "query": "\n        SELECT ts.truthful_score, ts.total_questions\n        FROM truthfulqa_scores_v2 ts\n        JOIN model_variants mv ON ts.model_variant_id = mv.id\n        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''\n        LIMIT 1\n        ",
   "describe": {
     "columns": [
       {
@@ -25,5 +25,5 @@
       true
     ]
   },
-  "hash": "edc8068fa970022a418cd458f3b955a1f55740c9022482976e5e1242c1e804fa"
+  "hash": "376d7ebc8dd5afea4238f2f76229f780328d2d5573ca115b02b02f7550bdb9a7"
 }

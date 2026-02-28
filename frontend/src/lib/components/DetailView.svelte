@@ -6,6 +6,7 @@
   import ContextConcurrencyHeatmap from './ContextConcurrencyHeatmap.svelte';
 
   export let configId;
+  export let lora = '';
 
   let detailData = null;
   let analysisData = null;
@@ -146,8 +147,9 @@
       const modelName = encodeURIComponent(detailData.config.model);
       const gpuModel = encodeURIComponent(detailData.system_info.gpu_model);
 
-      console.log('Fetching analysis data for:', modelName, gpuModel);
-      const analysisResponse = await fetch(`/api/model-hardware-analysis/${modelName}/${gpuModel}`);
+      const loraParam = lora ? `?lora=${encodeURIComponent(lora)}` : '';
+      console.log('Fetching analysis data for:', modelName, gpuModel, lora ? `(LoRA: ${lora})` : '');
+      const analysisResponse = await fetch(`/api/model-hardware-analysis/${modelName}/${gpuModel}${loraParam}`);
 
       if (analysisResponse.ok) {
         analysisData = await analysisResponse.json();
@@ -291,7 +293,7 @@
         </div>
 
         <!-- Multi-Quantization Radar Chart -->
-        <MultiQuantizationRadarChart analysisData={analysisData} />
+        <MultiQuantizationRadarChart analysisData={analysisData} {lora} />
 
         <!-- Power Limit x Concurrency Heatmaps -->
         <div class="heatmaps-section">

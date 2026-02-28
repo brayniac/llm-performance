@@ -36,12 +36,14 @@ pub async fn upload_benchmarks(
 
     // Normalize quantization (strip redundant -GGUF suffix, etc.)
     let quantization = normalize_quantization(&request.quantization);
+    let lora_adapter = request.lora_adapter.as_deref().unwrap_or("");
 
     // Find or create model variant
     let model_variant_id = find_or_create_model_variant(
         &mut tx,
         &request.model_name,
         &quantization,
+        lora_adapter,
     )
     .await
     .map_err(|e| {
@@ -412,15 +414,17 @@ async fn find_or_create_model_variant(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     model_name: &str,
     quantization: &str,
+    lora_adapter: &str,
 ) -> Result<Uuid, sqlx::Error> {
     // Try to find existing model variant
     if let Ok(existing) = sqlx::query!(
         r#"
         SELECT id FROM model_variants
-        WHERE model_name = $1 AND quantization = $2
+        WHERE model_name = $1 AND quantization = $2 AND lora_adapter = $3
         "#,
         model_name,
-        quantization
+        quantization,
+        lora_adapter
     )
     .fetch_one(&mut **tx)
     .await
@@ -432,12 +436,13 @@ async fn find_or_create_model_variant(
     let model_variant_id = Uuid::new_v4();
     sqlx::query!(
         r#"
-        INSERT INTO model_variants (id, model_name, quantization)
-        VALUES ($1, $2, $3)
+        INSERT INTO model_variants (id, model_name, quantization, lora_adapter)
+        VALUES ($1, $2, $3, $4)
         "#,
         model_variant_id,
         model_name,
-        quantization
+        quantization,
+        lora_adapter
     )
     .execute(&mut **tx)
     .await?;

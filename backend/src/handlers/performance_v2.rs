@@ -50,7 +50,7 @@ pub async fn get_performance_grid_v2(
             (SELECT truthful_score FROM truthfulqa_scores_v2 WHERE model_variant_id = mv.id LIMIT 1) as truthfulqa_score
         FROM test_runs tr
         JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id
-        LEFT JOIN model_variants mv ON mv.model_name = tr.model_name AND mv.quantization = tr.quantization
+        LEFT JOIN model_variants mv ON mv.model_name = tr.model_name AND mv.quantization = tr.quantization AND mv.lora_adapter = ''
         LEFT JOIN performance_metrics pm_speed ON pm_speed.test_run_id = tr.id 
             AND pm_speed.metric_name = 'tokens_per_second'
         LEFT JOIN performance_metrics pm_memory ON pm_memory.test_run_id = tr.id 

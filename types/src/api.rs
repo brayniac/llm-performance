@@ -168,6 +168,10 @@ pub struct QuantizationPerformance {
     /// Quantization scheme
     pub quantization: String,
 
+    /// LoRA adapter name (empty string means base model)
+    #[serde(default)]
+    pub lora_adapter: String,
+
     /// Quality score for the selected benchmark
     pub quality_score: f64,
 

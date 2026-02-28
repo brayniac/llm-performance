@@ -77,8 +77,9 @@
   }
 
   // View details for a specific quantization
-  function viewDetails(id) {
-    goto(`/detail/${id}`);
+  function viewDetails(id, loraAdapter) {
+    const params = loraAdapter ? `?lora=${encodeURIComponent(loraAdapter)}` : '';
+    goto(`/detail/${id}${params}`);
   }
 
   // Handle selection changes
@@ -203,7 +204,7 @@
           expanded={expandedModels.has(model.model_name)}
           {selectedConfigs}
           on:toggle={() => toggleModel(model.model_name)}
-          on:viewDetails={(e) => viewDetails(e.detail.id)}
+          on:viewDetails={(e) => viewDetails(e.detail.id, e.detail.loraAdapter)}
           on:selectionChanged={(e) => handleSelectionChanged(e.detail.configId)}
         />
       {/each}

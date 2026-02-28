@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT ms.category, AVG(ms.score) as avg_score\n            FROM mmlu_scores_v2 ms\n            JOIN model_variants mv ON ms.model_variant_id = mv.id\n            WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = $3\n            GROUP BY ms.category\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "category",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "avg_score",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "99b1db5f90dda4c37be03822910820a01863d79ff5ffbcee61c8a63515133139"
+}

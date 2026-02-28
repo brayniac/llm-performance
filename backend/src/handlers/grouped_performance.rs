@@ -65,6 +65,7 @@ pub async fn get_grouped_performance(
     };
     
     // Get all test runs with their performance metrics and quality scores
+    // JOIN model_variants to get per-variant quality scores (LoRA variants produce separate rows)
     let query = r#"
         WITH test_run_data AS (
             SELECT
@@ -84,39 +85,35 @@ pub async fn get_grouped_performance(
                 hp.gpu_model,
                 hp.cpu_arch,
                 hp.cpu_model,
-                CASE 
+                mv.lora_adapter,
+                CASE
                     WHEN $1 = 'mmlu' THEN (
-                        SELECT AVG(ms.score) 
+                        SELECT AVG(ms.score)
                         FROM mmlu_scores_v2 ms
-                        JOIN model_variants mv ON ms.model_variant_id = mv.id
-                        WHERE mv.model_name = tr.model_name AND mv.quantization = tr.quantization
+                        WHERE ms.model_variant_id = mv.id
                     )
                     WHEN $1 = 'gsm8k' THEN (
                         SELECT gs.accuracy * 100
                         FROM gsm8k_scores_v2 gs
-                        JOIN model_variants mv ON gs.model_variant_id = mv.id
-                        WHERE mv.model_name = tr.model_name AND mv.quantization = tr.quantization
+                        WHERE gs.model_variant_id = mv.id
                         LIMIT 1
                     )
                     WHEN $1 = 'humaneval' THEN (
                         SELECT hs.pass_at_1
                         FROM humaneval_scores_v2 hs
-                        JOIN model_variants mv ON hs.model_variant_id = mv.id
-                        WHERE mv.model_name = tr.model_name AND mv.quantization = tr.quantization
+                        WHERE hs.model_variant_id = mv.id
                         LIMIT 1
                     )
                     WHEN $1 = 'hellaswag' THEN (
                         SELECT hs.accuracy
                         FROM hellaswag_scores_v2 hs
-                        JOIN model_variants mv ON hs.model_variant_id = mv.id
-                        WHERE mv.model_name = tr.model_name AND mv.quantization = tr.quantization
+                        WHERE hs.model_variant_id = mv.id
                         LIMIT 1
                     )
                     WHEN $1 = 'truthfulqa' THEN (
                         SELECT ts.truthful_score
                         FROM truthfulqa_scores_v2 ts
-                        JOIN model_variants mv ON ts.model_variant_id = mv.id
-                        WHERE mv.model_name = tr.model_name AND mv.quantization = tr.quantization
+                        WHERE ts.model_variant_id = mv.id
                         LIMIT 1
                     )
                     WHEN $1 = 'none' THEN NULL
@@ -124,6 +121,7 @@ pub async fn get_grouped_performance(
                 END as quality_score
             FROM test_runs tr
             JOIN hardware_profiles hp ON tr.hardware_profile_id = hp.id
+            LEFT JOIN model_variants mv ON mv.model_name = tr.model_name AND mv.quantization = tr.quantization
             LEFT JOIN performance_metrics pm_speed ON pm_speed.test_run_id = tr.id
                 AND pm_speed.metric_name = 'tokens_per_second'
             LEFT JOIN performance_metrics pm_memory ON pm_memory.test_run_id = tr.id
@@ -171,6 +169,7 @@ pub async fn get_grouped_performance(
         let dataset_name: Option<String> = row.get("dataset_name");
         let gpu_power_limit_watts: Option<i32> = row.get("gpu_power_limit_watts");
         let hardware: String = row.get("hardware");
+        let lora_adapter: String = row.try_get("lora_adapter").unwrap_or_default();
 
         // Calculate tokens/kWh: (tokens/second × 3,600,000) / watts
         let tokens_per_kwh = if let (Some(speed), Some(power)) = (tokens_per_second, gpu_power_watts) {
@@ -233,6 +232,7 @@ pub async fn get_grouped_performance(
         let config = QuantizationPerformance {
             id: row.get("id"),
             quantization: row.get("quantization"),
+            lora_adapter: lora_adapter.clone(),
             quality_score: quality_score.unwrap_or(0.0),
             tokens_per_second: tokens_per_second.unwrap_or(0.0),
             memory_gb: memory_gb.unwrap_or(0.0),
@@ -248,7 +248,7 @@ pub async fn get_grouped_performance(
             tokens_per_kwh,
         };
 
-        // Group by model → hardware platform
+        // Group by (model, lora_adapter) → hardware platform
         // Use gpu_model as key for GPU workloads, cpu_model for CPU-only
         let platform_key = if gpu_model == "CPU Only" || gpu_model == "N/A" || gpu_model.starts_with("CPU") {
             cpu_model.clone()
@@ -256,8 +256,16 @@ pub async fn get_grouped_performance(
             gpu_model.clone()
         };
 
+        // Include lora_adapter in the model-level grouping key so LoRA variants
+        // appear as separate rows with different quality scores but same performance
+        let model_key = if lora_adapter.is_empty() {
+            model_name.clone()
+        } else {
+            format!("{}||lora:{}", model_name, lora_adapter)
+        };
+
         model_hardware_groups
-            .entry(model_name.clone())
+            .entry(model_key)
             .or_insert_with(HashMap::new)
             .entry(platform_key)
             .or_insert_with(Vec::new)
@@ -344,10 +352,17 @@ pub async fn get_grouped_performance(
     // Convert to response format - build hardware platforms per model
     let mut models: Vec<ModelPerformanceGroup> = model_hardware_groups
         .into_iter()
-        .filter_map(|(model_name, hardware_map)| {
+        .filter_map(|(model_key, hardware_map)| {
             if hardware_map.is_empty() {
                 return None;
             }
+
+            // Extract the real model_name from the grouping key
+            let model_name = if let Some(idx) = model_key.find("||lora:") {
+                model_key[..idx].to_string()
+            } else {
+                model_key.clone()
+            };
 
             // Build hardware platform list
             let mut hardware_platforms: Vec<HardwarePlatformPerformance> = hardware_map
@@ -445,7 +460,7 @@ pub async fn get_grouped_performance(
             Some(ModelPerformanceGroup {
                 model_name: model_name.clone(),
                 best_hardware,
-                total_hardware_platforms: *total_platforms_by_model.get(&model_name).unwrap_or(&qualifying_platforms),
+                total_hardware_platforms: *total_platforms_by_model.get(&model_key).unwrap_or(&qualifying_platforms),
                 qualifying_platforms,
                 all_hardware_platforms: all_platforms,
             })

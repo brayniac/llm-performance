@@ -109,7 +109,7 @@ async fn get_config_data_by_uuid(
         SELECT AVG(ms.score) as avg_score
         FROM mmlu_scores_v2 ms
         JOIN model_variants mv ON ms.model_variant_id = mv.id
-        WHERE mv.model_name = $1 AND mv.quantization = $2
+        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
         "#,
         test_run.model_name,
         test_run.quantization
@@ -169,7 +169,7 @@ async fn get_category_comparison(
         SELECT ms.category, ms.score
         FROM mmlu_scores_v2 ms
         JOIN model_variants mv ON ms.model_variant_id = mv.id
-        WHERE mv.model_name = $1 AND mv.quantization = $2
+        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
         ORDER BY ms.category
         "#,
         run_a.model_name,
@@ -190,7 +190,7 @@ async fn get_category_comparison(
         SELECT ms.category, ms.score
         FROM mmlu_scores_v2 ms
         JOIN model_variants mv ON ms.model_variant_id = mv.id
-        WHERE mv.model_name = $1 AND mv.quantization = $2
+        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
         ORDER BY ms.category
         "#,
         run_b.model_name,
@@ -212,7 +212,7 @@ async fn get_category_comparison(
         SELECT gs.accuracy
         FROM gsm8k_scores_v2 gs
         JOIN model_variants mv ON gs.model_variant_id = mv.id
-        WHERE mv.model_name = $1 AND mv.quantization = $2
+        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
         LIMIT 1
         "#,
         run_a.model_name,
@@ -228,7 +228,7 @@ async fn get_category_comparison(
         SELECT gs.accuracy
         FROM gsm8k_scores_v2 gs
         JOIN model_variants mv ON gs.model_variant_id = mv.id
-        WHERE mv.model_name = $1 AND mv.quantization = $2
+        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
         LIMIT 1
         "#,
         run_b.model_name,

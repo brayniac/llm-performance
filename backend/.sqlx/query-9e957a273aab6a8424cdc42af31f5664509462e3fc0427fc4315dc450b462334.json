@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT hs.pass_at_1\n        FROM humaneval_scores_v2 hs\n        JOIN model_variants mv ON hs.model_variant_id = mv.id\n        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''\n        LIMIT 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "pass_at_1",
+        "type_info": "Float8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9e957a273aab6a8424cdc42af31f5664509462e3fc0427fc4315dc450b462334"
+}

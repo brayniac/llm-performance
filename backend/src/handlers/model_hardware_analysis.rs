@@ -2,7 +2,7 @@
 // Model + Hardware analysis endpoint for detailed visualizations
 
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::Json,
 };
@@ -12,6 +12,11 @@ use std::collections::HashMap;
 use llm_benchmark_types::ErrorResponse;
 
 use crate::AppState;
+
+#[derive(Debug, Deserialize)]
+pub struct AnalysisQueryParams {
+    pub lora: Option<String>,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ModelHardwareAnalysis {
@@ -80,8 +85,10 @@ fn quantization_sort_key(quant: &str) -> (u8, String) {
 /// Get model+hardware analysis data for visualizations
 pub async fn get_model_hardware_analysis(
     Path((model_name, gpu_model_param)): Path<(String, String)>,
+    Query(query_params): Query<AnalysisQueryParams>,
     State(state): State<AppState>,
 ) -> Result<Json<ModelHardwareAnalysis>, (StatusCode, Json<ErrorResponse>)> {
+    let lora_adapter = query_params.lora.as_deref().unwrap_or("");
     // Decode URL-encoded model name and gpu model
     let model_name = urlencoding::decode(&model_name)
         .map_err(|e| {
@@ -193,17 +200,18 @@ pub async fn get_model_hardware_analysis(
     // Get quality scores for each quantization and build summaries
     let mut quantization_summaries = Vec::new();
     for ((backend, quant), runs) in quant_map.iter() {
-        // Get category-level scores
+        // Get category-level scores (filtered by LoRA adapter)
         let category_scores_rows = sqlx::query!(
             r#"
             SELECT ms.category, AVG(ms.score) as avg_score
             FROM mmlu_scores_v2 ms
             JOIN model_variants mv ON ms.model_variant_id = mv.id
-            WHERE mv.model_name = $1 AND mv.quantization = $2
+            WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = $3
             GROUP BY ms.category
             "#,
             model_name,
-            quant
+            quant,
+            lora_adapter
         )
         .fetch_all(&state.db)
         .await

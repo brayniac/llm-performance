@@ -26,8 +26,8 @@
     dispatch('toggle');
   }
 
-  function viewDetails(id) {
-    dispatch('viewDetails', { id });
+  function viewDetails(id, loraAdapter) {
+    dispatch('viewDetails', { id, loraAdapter: loraAdapter || '' });
   }
 
   function handleCheckboxChange() {
@@ -126,6 +126,9 @@
 
   <div class="quantization">
     {model.best_hardware.best_config.quantization}
+    {#if model.best_hardware.best_config.lora_adapter}
+      <span class="lora-badge" title="LoRA: {model.best_hardware.best_config.lora_adapter}">{model.best_hardware.best_config.lora_adapter}</span>
+    {/if}
   </div>
 
   {#if benchmark !== 'none'}
@@ -153,7 +156,7 @@
   <div class="actions">
     <button
       class="detail-btn"
-      on:click={() => viewDetails(model.best_hardware.best_config.id)}
+      on:click={() => viewDetails(model.best_hardware.best_config.id, model.best_hardware.best_config.lora_adapter)}
     >
       Details
     </button>
@@ -184,7 +187,12 @@
           {/if}
         </div>
         <div>
-          <div>{platform.best_config.quantization}</div>
+          <div>
+            {platform.best_config.quantization}
+            {#if platform.best_config.lora_adapter}
+              <span class="lora-badge" title="LoRA: {platform.best_config.lora_adapter}">{platform.best_config.lora_adapter}</span>
+            {/if}
+          </div>
           {#if platform.best_config.concurrent_requests || platform.best_config.max_context_length || platform.best_config.load_pattern || platform.best_config.gpu_power_limit_watts || platform.best_config.dataset_name}
             <div class="config-badges" style="margin-top: 4px;">
               {#if platform.best_config.load_pattern && platform.best_config.concurrent_requests}
@@ -218,7 +226,7 @@
         <div>
           <button
             class="detail-btn small"
-            on:click={() => viewDetails(platform.best_config.id)}
+            on:click={() => viewDetails(platform.best_config.id, platform.best_config.lora_adapter)}
           >
             Details
           </button>
@@ -419,5 +427,17 @@
     color: var(--color-accent-muted-text);
     border-radius: 3px;
     white-space: nowrap;
+  }
+
+  .lora-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    background-color: var(--color-warning, #f59e0b);
+    color: #fff;
+    border-radius: 3px;
+    margin-left: 4px;
+    vertical-align: middle;
   }
 </style>

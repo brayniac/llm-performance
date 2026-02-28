@@ -48,6 +48,10 @@ enum Commands {
         #[arg(short = 'm', long)]
         max_context_length: Option<i32>,
 
+        /// LoRA adapter name (omit for base model)
+        #[arg(long)]
+        lora: Option<String>,
+
         /// Output file path (default: llm.json)
         #[arg(short, long, default_value = "llm.json")]
         output: PathBuf,
@@ -95,6 +99,10 @@ enum Commands {
         /// API server URL to upload to (default: http://localhost:3000)
         #[arg(short, long, default_value = "http://localhost:3000")]
         server: String,
+
+        /// LoRA adapter name (omit for base model)
+        #[arg(long)]
+        lora: Option<String>,
     },
 }
 
@@ -113,6 +121,8 @@ struct BenchmarkArtifact {
     model_name: String,
     model_path: String,
     quantization: String,
+    #[serde(default)]
+    lora_adapter: Option<String>,
 
     // Runtime configuration
     gpu_power_limit_watts: Option<i32>,
@@ -292,6 +302,7 @@ async fn main() -> Result<()> {
             power_limit,
             concurrent_requests,
             max_context_length,
+            lora,
             output,
         } => {
             record_config(
@@ -301,6 +312,7 @@ async fn main() -> Result<()> {
                 power_limit,
                 concurrent_requests,
                 max_context_length,
+                lora,
                 output,
             ).await?;
         }
@@ -322,6 +334,7 @@ async fn main() -> Result<()> {
             report_file,
             model_path,
             server,
+            lora,
         } => {
             upload_mmlu_pro(
                 report_file,
@@ -332,6 +345,7 @@ async fn main() -> Result<()> {
                 server,
                 "llama.cpp".to_string(), // backend
                 None, // notes
+                lora,
             ).await?;
         }
     }
@@ -1478,6 +1492,7 @@ async fn upload_mmlu_pro(
     server: String,
     _backend: String,
     _notes: Option<String>,
+    lora_adapter: Option<String>,
 ) -> Result<()> {
 
     // Auto-detect model name and quantization from model_path if provided
@@ -1591,6 +1606,7 @@ async fn upload_mmlu_pro(
     let upload_request = llm_benchmark_types::UploadBenchmarkRequest {
         model_name: model,
         quantization,
+        lora_adapter,
         benchmark_scores: vec![BenchmarkScoreType::MMLU(mmlu_score)],
         timestamp: Some(test_timestamp),
     };
@@ -2227,6 +2243,9 @@ async fn upload_mmlu_from_systemslab(
     println!("Parsed llm.json:");
     println!("  Model: {}", artifact.model_name);
     println!("  Quantization: {}", artifact.quantization);
+    if let Some(lora) = &artifact.lora_adapter {
+        println!("  LoRA Adapter: {}", lora);
+    }
 
     // Find MMLU artifact (prefer mmlu-results.json, fall back to report.txt)
     let mmlu_artifact = all_artifacts.iter()
@@ -2259,6 +2278,7 @@ async fn upload_mmlu_from_systemslab(
     let request = UploadBenchmarkRequest {
         model_name: artifact.model_name.clone(),
         quantization: artifact.quantization.clone(),
+        lora_adapter: artifact.lora_adapter.clone(),
         benchmark_scores: vec![benchmarks::BenchmarkScoreType::MMLU(mmlu_score)],
         timestamp: Some(Utc::now()),
     };
@@ -3191,6 +3211,7 @@ async fn record_config(
     power_limit: Option<i32>,
     concurrent_requests: Option<i32>,
     max_context_length: Option<i32>,
+    lora: Option<String>,
     output: PathBuf,
 ) -> Result<()> {
     println!("🔍 Recording system configuration...");
@@ -3271,6 +3292,7 @@ async fn record_config(
         model_name: model_name.clone(),
         model_path: model_path.clone(),
         quantization: quantization.clone(),
+        lora_adapter: lora.clone(),
 
         // Runtime
         gpu_power_limit_watts: detected_power_limit,
@@ -3302,6 +3324,9 @@ async fn record_config(
     }
     println!("  Model: {}", artifact.model_name);
     println!("  Quantization: {}", artifact.quantization);
+    if let Some(lora) = &artifact.lora_adapter {
+        println!("  LoRA Adapter: {}", lora);
+    }
     if let Some(backend_name) = &artifact.backend_name {
         print!("  Backend: {}", backend_name);
         if let Some(version) = &artifact.backend_version {

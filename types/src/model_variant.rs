@@ -36,6 +36,8 @@ pub struct ModelVariantWithScores {
 pub struct UploadBenchmarkRequest {
     pub model_name: String,
     pub quantization: String,
+    /// Optional LoRA adapter name. None/empty means base model.
+    pub lora_adapter: Option<String>,
     pub benchmark_scores: Vec<crate::benchmarks::BenchmarkScoreType>,
     pub timestamp: Option<DateTime<Utc>>,
 }

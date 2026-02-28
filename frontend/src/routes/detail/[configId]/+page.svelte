@@ -4,6 +4,7 @@
   import DetailView from '$lib/components/DetailView.svelte';
 
   $: configId = $page.params.configId;
+  $: lora = $page.url.searchParams.get('lora') || '';
 
   function goBack() {
     goto('/');
@@ -22,7 +23,7 @@
     </button>
   </div>
 
-  <DetailView {configId} />
+  <DetailView {configId} {lora} />
 </div>
 
 <style>

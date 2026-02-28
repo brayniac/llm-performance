@@ -55,11 +55,14 @@ pub async fn upload_benchmarks_raw(
         )
     })?;
 
+    let lora_adapter = request.lora_adapter.as_deref().unwrap_or("");
+
     // Find or create model variant
     let model_variant_id = find_or_create_model_variant_raw(
         &mut tx,
         &request.model_name,
         &request.quantization,
+        lora_adapter,
     )
     .await
     .map_err(|e| {
@@ -190,13 +193,15 @@ async fn find_or_create_model_variant_raw(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     model_name: &str,
     quantization: &str,
+    lora_adapter: &str,
 ) -> Result<Uuid, sqlx::Error> {
     // Try to find existing
     let existing = sqlx::query(
-        "SELECT id FROM model_variants WHERE model_name = $1 AND quantization = $2"
+        "SELECT id FROM model_variants WHERE model_name = $1 AND quantization = $2 AND lora_adapter = $3"
     )
     .bind(model_name)
     .bind(quantization)
+    .bind(lora_adapter)
     .fetch_optional(&mut **tx)
     .await?;
 
@@ -207,11 +212,12 @@ async fn find_or_create_model_variant_raw(
     // Create new
     let id = Uuid::new_v4();
     sqlx::query(
-        "INSERT INTO model_variants (id, model_name, quantization) VALUES ($1, $2, $3)"
+        "INSERT INTO model_variants (id, model_name, quantization, lora_adapter) VALUES ($1, $2, $3, $4)"
     )
     .bind(id)
     .bind(model_name)
     .bind(quantization)
+    .bind(lora_adapter)
     .execute(&mut **tx)
     .await?;
 

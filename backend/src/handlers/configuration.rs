@@ -59,7 +59,7 @@ pub async fn get_configurations(
             SELECT AVG(ms.score) as avg_score
             FROM mmlu_scores_v2 ms
             JOIN model_variants mv ON ms.model_variant_id = mv.id
-            WHERE mv.model_name = $1 AND mv.quantization = $2
+            WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
             "#,
             row.model_name,
             row.quantization
@@ -184,7 +184,7 @@ async fn get_detailed_config_data(
         SELECT AVG(ms.score) as avg_score
         FROM mmlu_scores_v2 ms
         JOIN model_variants mv ON ms.model_variant_id = mv.id
-        WHERE mv.model_name = $1 AND mv.quantization = $2
+        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
         "#,
         result.model_name,
         result.quantization
@@ -248,7 +248,7 @@ async fn get_category_scores(
         SELECT ms.category, ms.score, ms.total_questions, ms.correct_answers
         FROM mmlu_scores_v2 ms
         JOIN model_variants mv ON ms.model_variant_id = mv.id
-        WHERE mv.model_name = $1 AND mv.quantization = $2
+        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
         ORDER BY ms.category
         "#,
         variant_info.model_name,
@@ -272,7 +272,7 @@ async fn get_category_scores(
         SELECT gs.accuracy, gs.problems_solved, gs.total_problems
         FROM gsm8k_scores_v2 gs
         JOIN model_variants mv ON gs.model_variant_id = mv.id
-        WHERE mv.model_name = $1 AND mv.quantization = $2
+        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
         LIMIT 1
         "#,
         variant_info.model_name,
@@ -296,7 +296,7 @@ async fn get_category_scores(
         SELECT hs.pass_at_1
         FROM humaneval_scores_v2 hs
         JOIN model_variants mv ON hs.model_variant_id = mv.id
-        WHERE mv.model_name = $1 AND mv.quantization = $2
+        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
         LIMIT 1
         "#,
         variant_info.model_name,
@@ -320,7 +320,7 @@ async fn get_category_scores(
         SELECT hs.accuracy, hs.total_questions, hs.correct_answers
         FROM hellaswag_scores_v2 hs
         JOIN model_variants mv ON hs.model_variant_id = mv.id
-        WHERE mv.model_name = $1 AND mv.quantization = $2
+        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
         LIMIT 1
         "#,
         variant_info.model_name,
@@ -344,7 +344,7 @@ async fn get_category_scores(
         SELECT ts.truthful_score, ts.total_questions
         FROM truthfulqa_scores_v2 ts
         JOIN model_variants mv ON ts.model_variant_id = mv.id
-        WHERE mv.model_name = $1 AND mv.quantization = $2
+        WHERE mv.model_name = $1 AND mv.quantization = $2 AND mv.lora_adapter = ''
         LIMIT 1
         "#,
         variant_info.model_name,

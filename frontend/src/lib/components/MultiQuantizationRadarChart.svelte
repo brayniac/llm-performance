@@ -5,6 +5,7 @@
   import { theme } from '$lib/theme.js';
 
   export let analysisData;
+  export let lora = '';
 
   let chartContainer;
   let chart;
@@ -51,7 +52,7 @@
 
     const option = {
       title: {
-        text: 'MMLU Category Scores by Quantization',
+        text: lora ? `MMLU Category Scores by Quantization (LoRA: ${lora})` : 'MMLU Category Scores by Quantization',
         left: 'center',
         textStyle: {
           fontSize: 18,

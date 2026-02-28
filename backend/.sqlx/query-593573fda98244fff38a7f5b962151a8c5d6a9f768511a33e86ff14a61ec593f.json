@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO test_runs (id, model_name, quantization, backend, backend_version,\n                              hardware_profile_id, timestamp, status, notes,\n                              concurrent_requests, max_context_length, load_pattern,\n                              dataset_name, gpu_power_limit_watts)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)\n        ON CONFLICT (id) DO UPDATE SET\n            model_name = EXCLUDED.model_name,\n            quantization = EXCLUDED.quantization,\n            backend = EXCLUDED.backend,\n            backend_version = EXCLUDED.backend_version,\n            hardware_profile_id = EXCLUDED.hardware_profile_id,\n            timestamp = EXCLUDED.timestamp,\n            status = EXCLUDED.status,\n            notes = EXCLUDED.notes,\n            concurrent_requests = EXCLUDED.concurrent_requests,\n            max_context_length = EXCLUDED.max_context_length,\n            load_pattern = EXCLUDED.load_pattern,\n            dataset_name = EXCLUDED.dataset_name,\n            gpu_power_limit_watts = EXCLUDED.gpu_power_limit_watts\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Uuid",
+        "Timestamptz",
+        "Varchar",
+        "Text",
+        "Int4",
+        "Int4",
+        "Varchar",
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "593573fda98244fff38a7f5b962151a8c5d6a9f768511a33e86ff14a61ec593f"
+}
