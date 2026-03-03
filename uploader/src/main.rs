@@ -870,21 +870,28 @@ fn detect_dtype_from_safetensors(model_path: &str) -> Result<Option<String>> {
         let buffer = unsafe { MmapOptions::new().map(&file)? };
         let tensors = SafeTensors::deserialize(&buffer)?;
 
-        // Get dtype from first tensor and convert immediately to avoid lifetime issues
-        let dtype_result = {
-            if let Some((_name, tensor_view)) = tensors.iter().next() {
-                use safetensors::Dtype;
-                match tensor_view.dtype() {
-                    Dtype::F16 => Some("FP16".to_string()),
-                    Dtype::BF16 => Some("BF16".to_string()),
-                    Dtype::F32 => Some("FP32".to_string()),
-                    Dtype::F8_E4M3 | Dtype::F8_E5M2 => Some("FP8_DYNAMIC".to_string()),
-                    _ => None, // Other dtypes - might be quantized or newer FP8 variants
-                }
-            } else {
-                None
+        // Check multiple tensors to determine the dominant dtype.
+        // Some models store weights in FP8 with BF16 scale tensors; checking only
+        // the first tensor would misidentify these as FP8_DYNAMIC.
+        use safetensors::Dtype;
+        let mut dtype_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        for (name, tensor_view) in tensors.iter() {
+            // Skip scale/norm tensors — they don't represent the model's quantization
+            if name.contains("_scale") || name.contains("layernorm") || name.contains("layer_norm") || name.contains("rmsnorm") {
+                continue;
             }
-        };
+            let dtype_str = match tensor_view.dtype() {
+                Dtype::F16 => "FP16",
+                Dtype::BF16 => "BF16",
+                Dtype::F32 => "FP32",
+                Dtype::F8_E4M3 | Dtype::F8_E5M2 => "FP8",
+                _ => continue,
+            };
+            *dtype_counts.entry(dtype_str.to_string()).or_insert(0) += 1;
+        }
+        let dtype_result = dtype_counts.into_iter()
+            .max_by_key(|(_k, v)| *v)
+            .map(|(k, _v)| k);
 
         return Ok(dtype_result);
     }
@@ -962,7 +969,12 @@ fn detect_quantization_from_config(model_path: &str) -> Result<Option<String>> {
     }
 
     // Check torch_dtype for unquantized models
-    if let Some(dtype) = config.get("torch_dtype") {
+    // Also check nested config paths (e.g., text_config.dtype for multimodal models)
+    let dtype_value = config.get("torch_dtype")
+        .or_else(|| config.get("text_config").and_then(|tc| tc.get("dtype")))
+        .or_else(|| config.get("model_config").and_then(|mc| mc.get("dtype")));
+
+    if let Some(dtype) = dtype_value {
         match dtype.as_str() {
             Some("bfloat16") | Some("bf16") => return Ok(Some("BF16".to_string())),
             Some("float16") | Some("fp16") => return Ok(Some("FP16".to_string())),
@@ -979,8 +991,8 @@ fn detect_quantization_from_config(model_path: &str) -> Result<Option<String>> {
         }
     }
 
-    // If dtype not found in config, try safetensors
-    if config.get("torch_dtype").is_none() {
+    // If dtype not found in config at all, try safetensors
+    if dtype_value.is_none() {
         if let Ok(Some(detected)) = detect_dtype_from_safetensors(model_path) {
             return Ok(Some(detected));
         }

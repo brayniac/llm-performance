@@ -404,7 +404,8 @@ fn is_valid_backend(backend: &str) -> bool {
     matches!(
         backend.to_lowercase().as_str(),
         "llama.cpp" | "vllm" | "transformers" | "tgi" | "text-generation-inference" |
-        "ctransformers" | "ggml" | "llamacpp" | "exllama" | "exllamav2" | "tensorrt-llm"
+        "ctransformers" | "ggml" | "llamacpp" | "exllama" | "exllamav2" | "tensorrt-llm" |
+        "sglang"
     )
 }
 
