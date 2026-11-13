@@ -1034,7 +1034,7 @@ fn extract_model_info_from_path(model_path: &str) -> Result<(String, String)> {
         };
 
         // Build HuggingFace-style model slug (org/model)
-        // For path like: /Volumes/Models/GGUF/Qwen/Qwen3-4B/Qwen3-4B.Q4_0.gguf
+        // For path like: /Volumes/Store/GGUF/Qwen/Qwen3-4B/Qwen3-4B.Q4_0.gguf
         // We want: Qwen/Qwen3-4B (components[-3]/components[-2] without the file)
         let components: Vec<_> = path.components().collect();
         let model_name = if components.len() >= 3 {
